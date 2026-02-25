@@ -1,0 +1,49 @@
+┌──────────────────┐
+│       User       │
+├──────────────────┤
+│ id (PK)          │
+│ name             │
+│ email (unique)   │
+│ password         │
+│ roleId (FK)      │
+│ userTypeId (FK)  │
+│ isActive         │
+│ createdAt        │
+└─────────┬────────┘
+          │
+          │ belongs to
+          ▼
+┌──────────────────┐
+│       Role       │
+├──────────────────┤
+│ id (PK)          │
+│ name (unique)    │
+│ description      │
+│ createdAt        │
+└─────────┬────────┘
+          │
+          │ many-to-many
+          ▼
+┌──────────────────────────┐
+│     RolePermission       │
+├──────────────────────────┤
+│ id (PK)                  │
+│ roleId (FK)              │
+│ permissionId (FK)        │
+└─────────┬─────────┬──────┘
+          │         │
+          │         │
+          ▼         ▼
+┌──────────────────┐   ┌──────────────────┐
+│   Permission     │   │    UserType      │
+├──────────────────┤   ├──────────────────┤
+│ id (PK)          │   │ id (PK)          │
+│ key (unique)     │   │ name (unique)    │
+│ description      │   │ parentId (FK)    │
+└──────────────────┘   └─────────┬────────┘
+                                  │
+                                  │ self-reference
+                                  ▼
+                          ┌──────────────────┐
+                          │    UserType      │
+                          └──────────────────┘
