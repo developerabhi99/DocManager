@@ -1,5 +1,5 @@
-import { prisma } from "../../src/config/db";
-import bcrypt from "bcrypt";
+import { prisma } from "../../src/config/db.js";
+import { generateSalt, hashPassword } from "../../src/utils/auth.js";
 
 async function main() {
   console.log("🌱 Seeding database...");
@@ -78,7 +78,7 @@ async function main() {
 
   // SUPER ADMIN → ALL PERMISSIONS
   await Promise.all(
-    permissions.map((permission:any) =>
+    permissions.map((permission: any) =>
       prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
@@ -98,10 +98,10 @@ async function main() {
   // DOCTOR
   await prisma.rolePermission.createMany({
     data: permissions
-      .filter((p:any) =>
+      .filter((p: any) =>
         ["VIEW_USERS", "VIEW_REPORTS", "VIEW_APPOINTMENT"].includes(p.key)
       )
-      .map((p:any) => ({
+      .map((p: any) => ({
         roleId: doctorRole.id,
         permissionId: p.id,
       })),
@@ -111,10 +111,10 @@ async function main() {
   // THERAPIST
   await prisma.rolePermission.createMany({
     data: permissions
-      .filter((p:any) =>
+      .filter((p: any) =>
         ["VIEW_APPOINTMENT", "CREATE_APPOINTMENT"].includes(p.key)
       )
-      .map((p:any) => ({
+      .map((p: any) => ({
         roleId: therapistRole.id,
         permissionId: p.id,
       })),
@@ -124,10 +124,10 @@ async function main() {
   // SALES
   await prisma.rolePermission.createMany({
     data: permissions
-      .filter((p:any) =>
+      .filter((p: any) =>
         ["VIEW_TRANSACTIONS", "MANAGE_TRANSACTIONS"].includes(p.key)
       )
-      .map((p:any) => ({
+      .map((p: any) => ({
         roleId: salesRole.id,
         permissionId: p.id,
       })),
@@ -178,8 +178,8 @@ async function main() {
      5. CREATE SUPER ADMIN USER
      =============================== */
 
-  const hashedPassword = await bcrypt.hash("admin123", 10);
-  const salt = await bcrypt.genSalt(10);
+  const salt = generateSalt();
+  const hashedPassword = hashPassword("admin123", salt);
 
   await prisma.user.upsert({
     where: { email: "admin@system.com" },
