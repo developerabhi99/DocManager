@@ -4,9 +4,17 @@ import type { Response, NextFunction } from "express";
 
 //const prisma = new PrismaClient();
 
-export function hasPermission(permissionKey: string) {
+export function hasPermission(permissionKey: string | string[]) {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const userId = req.user.userId;
+    const userId = req.user?.userId;
+
+    if (!userId || typeof userId !== "string") {
+      return res.status(401).json({ message: "Token missing" });
+    }
+
+    const required = Array.isArray(permissionKey)
+      ? permissionKey
+      : [permissionKey];
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -21,9 +29,11 @@ export function hasPermission(permissionKey: string) {
       },
     });
 
-    const allowed = user?.role.permissions.some(
-      (rp: any) => rp.permission.key === permissionKey
+    const userPermissions: string[] = (user?.role?.permissions || []).map(
+      (rp: any) => rp.permission?.key
     );
+
+    const allowed = required.some((k) => userPermissions.includes(k));
 
     if (!allowed) {
       return res.status(403).json({ message: "Access denied" });

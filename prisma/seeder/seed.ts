@@ -140,36 +140,52 @@ async function main() {
      4. CREATE USER TYPE HIERARCHY
      =============================== */
 
-  const superAdminType = await prisma.userType.create({
-    data: { name: "SUPER_ADMIN" },
+  const superAdminType = await prisma.userType.upsert({
+    where: { name: "SUPER_ADMIN" },
+    update: {},
+    create: { name: "SUPER_ADMIN" },
   });
 
-  const doctorType = await prisma.userType.create({
-    data: { name: "DOCTOR", parentId: superAdminType.id },
+  const doctorType = await prisma.userType.upsert({
+    where: { name: "DOCTOR" },
+    update: {},
+    create: { name: "DOCTOR", parentId: superAdminType.id },
   });
 
-  const psychiatristType = await prisma.userType.create({
-    data: { name: "PSYCHIATRIST", parentId: doctorType.id },
+  const psychiatristType = await prisma.userType.upsert({
+    where: { name: "PSYCHIATRIST" },
+    update: {},
+    create: { name: "PSYCHIATRIST", parentId: doctorType.id },
   });
 
-  const therapistType = await prisma.userType.create({
-    data: { name: "THERAPIST", parentId: psychiatristType.id },
+  const therapistType = await prisma.userType.upsert({
+    where: { name: "THERAPIST" },
+    update: {},
+    create: { name: "THERAPIST", parentId: psychiatristType.id },
   });
 
-  const juniorTherapistType = await prisma.userType.create({
-    data: { name: "JUNIOR_THERAPIST", parentId: therapistType.id },
+  const juniorTherapistType = await prisma.userType.upsert({
+    where: { name: "JUNIOR_THERAPIST" },
+    update: {},
+    create: { name: "JUNIOR_THERAPIST", parentId: therapistType.id },
   });
 
-  const salesType = await prisma.userType.create({
-    data: { name: "SALES", parentId: superAdminType.id },
+  const salesType = await prisma.userType.upsert({
+    where: { name: "SALES" },
+    update: {},
+    create: { name: "SALES", parentId: superAdminType.id },
   });
 
-  const transactionType = await prisma.userType.create({
-    data: { name: "TRANSACTION", parentId: salesType.id },
+  const transactionType = await prisma.userType.upsert({
+    where: { name: "TRANSACTION" },
+    update: {},
+    create: { name: "TRANSACTION", parentId: salesType.id },
   });
 
-  const appointmentManagerType = await prisma.userType.create({
-    data: { name: "APPOINTMENT_MANAGER", parentId: transactionType.id },
+  const appointmentManagerType = await prisma.userType.upsert({
+    where: { name: "APPOINTMENT_MANAGER" },
+    update: {},
+    create: { name: "APPOINTMENT_MANAGER", parentId: transactionType.id },
   });
 
   console.log("✅ User hierarchy created");
@@ -195,6 +211,116 @@ async function main() {
   });
 
   console.log("✅ Super Admin user created");
+
+  /* ===============================
+     6. CREATE SAMPLE PATIENTS
+     =============================== */
+  const patients = await Promise.all([
+    prisma.patient.create({
+      data: {
+        name: "Alice Johnson",
+        email: "alice.johnson@example.com",
+        phone: "+1234567890",
+        address: "123 Main St, Springfield",
+        age: 30,
+        gender: "Female",
+      },
+    }),
+    prisma.patient.create({
+      data: {
+        name: "Bob Smith",
+        email: "bob.smith@example.com",
+        phone: "+0987654321",
+        address: "456 Oak Ave, Shelbyville",
+        age: 45,
+        gender: "Male",
+      },
+    }),
+    prisma.patient.create({
+      data: {
+        name: "Carol White",
+        phone: "+1122334455",
+        address: "789 Pine Rd, Capital City",
+        age: 28,
+        gender: "Female",
+      },
+    }),
+  ]);
+
+  console.log("✅ Sample patients created");
+
+  /* ===============================
+     7. CREATE DOCTOR USERS
+     =============================== */
+  const doctorSalt = generateSalt();
+  const doctorHashedPassword = hashPassword("doctor123", doctorSalt);
+
+  const doctor1 = await prisma.user.upsert({
+    where: { email: "doctor1@clinic.com" },
+    update: {},
+    create: {
+      name: "Dr. Emily Brown",
+      email: "doctor1@clinic.com",
+      password: doctorHashedPassword,
+      salt: doctorSalt,
+      roleId: doctorRole.id,
+      userTypeId: doctorType.id,
+    },
+  });
+
+  const doctor2 = await prisma.user.upsert({
+    where: { email: "doctor2@clinic.com" },
+    update: {},
+    create: {
+      name: "Dr. Michael Green",
+      email: "doctor2@clinic.com",
+      password: doctorHashedPassword,
+      salt: doctorSalt,
+      roleId: doctorRole.id,
+      userTypeId: doctorType.id,
+    },
+  });
+
+  console.log("✅ Doctor users created");
+
+  /* ===============================
+     8. CREATE SAMPLE APPOINTMENTS
+     =============================== */
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const dayAfter = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+  await Promise.all([
+    prisma.appointment.create({
+      data: {
+        patientId: patients[0].id,
+        doctorId: doctor1.id,
+        dateTime: tomorrow,
+        status: "SCHEDULED",
+        notes: "Initial consultation",
+      },
+    }),
+    prisma.appointment.create({
+      data: {
+        patientId: patients[1].id,
+        doctorId: doctor2.id,
+        dateTime: dayAfter,
+        status: "SCHEDULED",
+        notes: "Follow-up appointment",
+      },
+    }),
+    prisma.appointment.create({
+      data: {
+        patientId: patients[2].id,
+        doctorId: doctor1.id,
+        dateTime: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+        status: "COMPLETED",
+        notes: "Routine checkup",
+      },
+    }),
+  ]);
+
+  console.log("✅ Sample appointments created");
 }
 
 main()
