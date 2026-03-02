@@ -17,6 +17,42 @@ import {
   listPatients,
   listAppointments,
 } from "../controllers/appointment.controller.js";
+import {
+  createTransaction,
+  updateTransactionStatus,
+  getPatientTransactions,
+  getAllTransactions,
+} from "../controllers/transaction.controller.js";
+import {
+  createMedicalReport,
+  updateMedicalReport,
+  getMedicalReportByAppointment,
+  getPatientMedicalReports,
+  referPatient,
+} from "../controllers/medicalReport.controller.js";
+import {
+  getMyAppointments,
+  getAppointmentDetails,
+  completeAppointment,
+  getPatientHistory,
+  getDoctorSchedule,
+  getDoctorsAndPatients,
+} from "../controllers/myAppointments.controller.js";
+import {
+  getDoctorSchedules,
+  upsertDoctorSchedule,
+  deleteDoctorSchedule,
+  getDoctorAvailability,
+  getAllDoctorSchedules,
+} from "../controllers/schedule.controller.js";
+import {
+  getEmployeeSchedules,
+  upsertEmployeeSchedule,
+  deleteEmployeeSchedule,
+  getAllEmployeeSchedules,
+  createDefaultSchedule,
+  createDefaultSchedulesForAll,
+} from "../controllers/employeeSchedule.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
 
@@ -109,6 +145,151 @@ router.get(
   authenticate,
   hasPermission(["CREATE_APPOINTMENT", "MANAGE_APPOINTMENT"]),
   listAppointments
+);
+
+// Schedule management routes
+router.get(
+  "/doctors/:doctorId/schedules",
+  authenticate,
+  getDoctorSchedules
+);
+router.post(
+  "/doctors/:doctorId/schedules",
+  authenticate,
+  upsertDoctorSchedule
+);
+router.delete(
+  "/doctors/:doctorId/schedules/:scheduleId",
+  authenticate,
+  deleteDoctorSchedule
+);
+router.get(
+  "/doctors/:doctorId/availability",
+  authenticate,
+  getDoctorAvailability
+);
+router.get(
+  "/admin/doctors/schedules",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  getAllDoctorSchedules
+);
+
+// Employee schedule management routes
+router.get(
+  "/employees/:userId/schedules",
+  authenticate,
+  getEmployeeSchedules
+);
+router.post(
+  "/employees/:userId/schedules",
+  authenticate,
+  upsertEmployeeSchedule
+);
+router.delete(
+  "/employees/:userId/schedules/:scheduleId",
+  authenticate,
+  deleteEmployeeSchedule
+);
+router.get(
+  "/admin/employees/schedules",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  getAllEmployeeSchedules
+);
+router.post(
+  "/admin/employees/:userId/default-schedule",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  createDefaultSchedule
+);
+router.post(
+  "/admin/employees/create-default-schedules",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  createDefaultSchedulesForAll
+);
+
+// Transaction management routes
+router.post(
+  "/transactions",
+  authenticate,
+  createTransaction
+);
+router.put(
+  "/transactions/:transactionId/status",
+  authenticate,
+  updateTransactionStatus
+);
+router.get(
+  "/patients/:patientId/transactions",
+  authenticate,
+  getPatientTransactions
+);
+router.get(
+  "/admin/transactions",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  getAllTransactions
+);
+
+// Medical report routes
+router.post(
+  "/medical-reports",
+  authenticate,
+  createMedicalReport
+);
+router.put(
+  "/medical-reports/:reportId",
+  authenticate,
+  updateMedicalReport
+);
+router.get(
+  "/appointments/:appointmentId/medical-report",
+  authenticate,
+  getMedicalReportByAppointment
+);
+router.get(
+  "/patients/:patientId/medical-reports",
+  authenticate,
+  getPatientMedicalReports
+);
+router.post(
+  "/appointments/:appointmentId/refer",
+  authenticate,
+  referPatient
+);
+
+// My Appointments routes
+router.get(
+  "/my-appointments",
+  authenticate,
+  getMyAppointments
+);
+router.get(
+  "/admin/doctors-patients",
+  authenticate,
+  getDoctorsAndPatients
+);
+router.get(
+  "/appointments/:appointmentId/details",
+  authenticate,
+  getAppointmentDetails
+);
+router.post(
+  "/appointments/:appointmentId/complete",
+  authenticate,
+  completeAppointment
+);
+router.get(
+  "/patients/:patientId/history",
+  authenticate,
+  getPatientHistory
+);
+router.get(
+  "/doctor/schedule",
+  authenticate,
+  getDoctorSchedule
 );
 
 export default router;

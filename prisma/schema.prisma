@@ -29,6 +29,9 @@ model User {
   userType   UserType @relation(fields: [userTypeId], references: [id])
 
   appointments Appointment[]
+  schedules   DoctorSchedule[]
+  employeeSchedules EmployeeSchedule[]
+  medicalReports MedicalReport[]
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -78,31 +81,104 @@ model RolePermission {
 }
 
 model Patient {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?  @unique
-  phone     String?
-  address   String?
-  age       Int?
-  gender    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  email      String?  @unique
+  phone      String?
+  address    String?
+  age        Int?
+  gender     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   appointments Appointment[]
+  transactions Transaction[]
 }
 
 model Appointment {
-  id         String    @id @default(cuid())
-  dateTime   DateTime
-  status     String    @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
-  notes      String?
+  id           String   @id @default(cuid())
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId     String
+  doctor       User     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  dateTime     DateTime
+  notes        String?
+  status       String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED, REFERRED
+  visitNumber  Int      @default(1) // 1st visit, 2nd visit, etc.
+  referredTo   String?  // Department or doctor ID for referral
+  referredFrom String?  // Previous appointment ID if this is a referral
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  patientId  String
-  patient    Patient  @relation(fields: [patientId], references: [id])
+  transactions Transaction[]
+  reports       MedicalReport[]
+}
 
+model Transaction {
+  id            String   @id @default(cuid())
+  patientId     String
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  
+  amount        Float
+  paymentMethod String   // CASH, CARD, ONLINE, INSURANCE
+  status        String   @default("PENDING") // PENDING, PAID, REFUNDED
+  description   String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model MedicalReport {
+  id            String   @id @default(cuid())
+  appointmentId String   @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  
+  doctorId      String
+  doctor        User     @relation(fields: [doctorId], references: [id])
+  
+  diagnosis     String?
+  symptoms      String?
+  treatment     String?
+  prescription  String?
+  notes         String?
+  reportUrl     String?  // File URL for uploaded reports
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model EmployeeSchedule {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  dayOfWeek  Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime  String   // Format: "09:00"
+  endTime    String   // Format: "17:00"
+  isAvailable Boolean @default(true)
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, dayOfWeek, startTime])
+}
+
+model DoctorSchedule {
+  id         String   @id @default(cuid())
   doctorId   String
-  doctor     User     @relation(fields: [doctorId], references: [id])
+  doctor     User     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  dayOfWeek  Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime  String   // Format: "09:00"
+  endTime    String   // Format: "17:00"
+  isAvailable Boolean @default(true)
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  @@unique([doctorId, dayOfWeek, startTime])
 }
