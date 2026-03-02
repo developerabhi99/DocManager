@@ -1,14 +1,15 @@
 import express from "express";
 import { login, updateUserImage } from "../controllers/auth.controller.js";
 import { createUser, createPermission, createRole, createUserType, listPermissions, listRoles, listUsers, listUserTypes, updateRolePermissions, } from "../controllers/admin.controller.js";
-import { createPatient, createAppointment, listPatients, listAppointments, } from "../controllers/appointment.controller.js";
-import { createTransaction, updateTransactionStatus, getPatientTransactions, getAllTransactions, } from "../controllers/transaction.controller.js";
+import { createPatient, createAppointment, listPatients, listAppointments, processPayment, completeAppointment, referAppointment, } from "../controllers/appointment.controller.js";
+import { createTransaction, updateTransactionStatus, getPatientTransactions, getAllTransactions, getTransactionStats, refundTransaction, } from "../controllers/transaction.controller.js";
 import { createMedicalReport, updateMedicalReport, getMedicalReportByAppointment, getPatientMedicalReports, referPatient, } from "../controllers/medicalReport.controller.js";
-import { getMyAppointments, getAppointmentDetails, completeAppointment, getPatientHistory, getDoctorSchedule, getDoctorsAndPatients, } from "../controllers/myAppointments.controller.js";
+import { getMyAppointments, getAppointmentDetails, completeAppointment as completeMyAppointment, getPatientHistory, getDoctorSchedule, getDoctorsAndPatients, } from "../controllers/myAppointments.controller.js";
 import { getDoctorSchedules, upsertDoctorSchedule, deleteDoctorSchedule, getDoctorAvailability, getAllDoctorSchedules, } from "../controllers/schedule.controller.js";
 import { getEmployeeSchedules, upsertEmployeeSchedule, deleteEmployeeSchedule, getAllEmployeeSchedules, createDefaultSchedule, createDefaultSchedulesForAll, } from "../controllers/employeeSchedule.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
+import { upload } from "../index.js";
 const router = express.Router();
 router.post("/login", login);
 router.put("/user/:id", authenticate, updateUserImage);
@@ -28,6 +29,10 @@ router.post("/admin/patients", authenticate, hasPermission("CREATE_APPOINTMENT")
 router.get("/admin/patients", authenticate, hasPermission(["CREATE_APPOINTMENT", "MANAGE_APPOINTMENT"]), listPatients);
 router.post("/admin/appointments", authenticate, hasPermission("CREATE_APPOINTMENT"), createAppointment);
 router.get("/admin/appointments", authenticate, hasPermission(["CREATE_APPOINTMENT", "MANAGE_APPOINTMENT"]), listAppointments);
+// Payment and appointment management routes
+router.post("/appointments/:appointmentId/payment", authenticate, hasPermission("MANAGE_APPOINTMENT"), processPayment);
+router.post("/appointments/:appointmentId/complete", authenticate, hasPermission("MANAGE_APPOINTMENT"), upload.single('reportFile'), (req, res) => completeAppointment(req, res));
+router.post("/appointments/:appointmentId/refer", authenticate, hasPermission("MANAGE_APPOINTMENT"), referAppointment);
 // Schedule management routes
 router.get("/doctors/:doctorId/schedules", authenticate, getDoctorSchedules);
 router.post("/doctors/:doctorId/schedules", authenticate, upsertDoctorSchedule);
@@ -46,17 +51,14 @@ router.post("/transactions", authenticate, createTransaction);
 router.put("/transactions/:transactionId/status", authenticate, updateTransactionStatus);
 router.get("/patients/:patientId/transactions", authenticate, getPatientTransactions);
 router.get("/admin/transactions", authenticate, hasPermission("MANAGE_USERS"), getAllTransactions);
+router.get("/admin/transactions/stats", authenticate, hasPermission("MANAGE_USERS"), getTransactionStats);
+router.post("/transactions/:transactionId/refund", authenticate, hasPermission("MANAGE_USERS"), refundTransaction);
 // Medical report routes
 router.post("/medical-reports", authenticate, createMedicalReport);
-router.put("/medical-reports/:reportId", authenticate, updateMedicalReport);
-router.get("/appointments/:appointmentId/medical-report", authenticate, getMedicalReportByAppointment);
-router.get("/patients/:patientId/medical-reports", authenticate, getPatientMedicalReports);
-router.post("/appointments/:appointmentId/refer", authenticate, referPatient);
 // My Appointments routes
 router.get("/my-appointments", authenticate, getMyAppointments);
 router.get("/admin/doctors-patients", authenticate, getDoctorsAndPatients);
 router.get("/appointments/:appointmentId/details", authenticate, getAppointmentDetails);
-router.post("/appointments/:appointmentId/complete", authenticate, completeAppointment);
 router.get("/patients/:patientId/history", authenticate, getPatientHistory);
 router.get("/doctor/schedule", authenticate, getDoctorSchedule);
 export default router;

@@ -18,6 +18,19 @@ export async function createTransaction(req: Request, res: Response) {
       return res.status(400).json({ message: "Amount must be greater than 0" });
     }
 
+    // Check if transaction already exists for this appointment
+    if (appointmentId) {
+      const existingTransaction = await prisma.transaction.findFirst({
+        where: { appointmentId }
+      });
+
+      if (existingTransaction) {
+        return res.status(400).json({ 
+          message: "Transaction already exists for this appointment" 
+        });
+      }
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         patientId,
@@ -47,17 +60,43 @@ export async function createTransaction(req: Request, res: Response) {
 // Update transaction status (mark as paid)
 export async function updateTransactionStatus(req: Request, res: Response) {
   const { transactionId } = req.params;
-  const { status } = req.body;
+  const { status, notes } = req.body;
+  const authUser: any = (req as any).user;
 
   try {
-    const validStatuses = ['PENDING', 'PAID', 'REFUNDED'];
+    const validStatuses = ['PENDING', 'PAID', 'REFUNDED', 'CANCELLED'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
+    // Get existing transaction
+    const existingTransaction = await prisma.transaction.findUnique({
+      where: { id: transactionId as string }
+    });
+
+    if (!existingTransaction) {
+      return res.status(404).json({ message: "Transaction not found" });
+    }
+
+    // Log status change for audit trail
+    const statusChangeData: any = { status };
+    
+    // Add notes if provided
+    if (notes) {
+      statusChangeData.description = existingTransaction.description 
+        ? `${existingTransaction.description} - ${notes}`
+        : notes;
+    }
+
+    // Add processed by user info
+    if (authUser) {
+      statusChangeData.processedBy = authUser.id;
+      statusChangeData.processedAt = new Date();
+    }
+
     const transaction = await prisma.transaction.update({
       where: { id: transactionId as string },
-      data: { status },
+      data: statusChangeData,
       include: {
         patient: true,
         appointment: {
@@ -78,21 +117,55 @@ export async function updateTransactionStatus(req: Request, res: Response) {
 // Get patient transactions
 export async function getPatientTransactions(req: Request, res: Response) {
   const { patientId } = req.params;
+  const { page = 1, limit = 10, status, startDate, endDate } = req.query;
 
   try {
-    const transactions = await prisma.transaction.findMany({
-      where: { patientId: patientId as string },
-      include: {
-        appointment: {
-          include: {
-            doctor: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    const where: any = { patientId: patientId as string };
+    
+    // Filter by status if provided
+    if (status) {
+      where.status = status;
+    }
+    
+    // Filter by date range if provided
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        where.createdAt.lte = new Date(endDate as string);
+      }
+    }
 
-    res.json(transactions);
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const [transactions, total] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        include: {
+          appointment: {
+            include: {
+              doctor: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Number(limit)
+      }),
+      prisma.transaction.count({ where })
+    ]);
+
+    res.json({
+      transactions,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) {
     console.error("getPatientTransactions error:", error);
     res.status(500).json({ error: "Failed to fetch transactions" });
@@ -102,6 +175,7 @@ export async function getPatientTransactions(req: Request, res: Response) {
 // Get all transactions (admin)
 export async function getAllTransactions(req: Request, res: Response) {
   const authUser: any = (req as any).user;
+  const { page = 1, limit = 10, status, startDate, endDate, patientId, paymentMethod } = req.query;
 
   try {
     // Only admin can view all transactions
@@ -109,21 +183,197 @@ export async function getAllTransactions(req: Request, res: Response) {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    const transactions = await prisma.transaction.findMany({
-      include: {
-        patient: true,
-        appointment: {
-          include: {
-            doctor: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    const where: any = {};
+    
+    // Filter by status if provided
+    if (status) {
+      where.status = status;
+    }
+    
+    // Filter by patient if provided
+    if (patientId) {
+      where.patientId = patientId;
+    }
+    
+    // Filter by payment method if provided
+    if (paymentMethod) {
+      where.paymentMethod = paymentMethod;
+    }
+    
+    // Filter by date range if provided
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        where.createdAt.lte = new Date(endDate as string);
+      }
+    }
 
-    res.json(transactions);
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const [transactions, total] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        include: {
+          patient: true,
+          appointment: {
+            include: {
+              doctor: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: Number(limit)
+      }),
+      prisma.transaction.count({ where })
+    ]);
+
+    res.json({
+      transactions,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) {
     console.error("getAllTransactions error:", error);
     res.status(500).json({ error: "Failed to fetch transactions" });
+  }
+}
+
+// Get transaction statistics
+export async function getTransactionStats(req: Request, res: Response) {
+  const authUser: any = (req as any).user;
+  const { startDate, endDate } = req.query;
+
+  try {
+    // Only admin can view statistics
+    if (authUser.role !== "SUPER_ADMIN") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const where: any = {};
+    
+    // Filter by date range if provided
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        where.createdAt.lte = new Date(endDate as string);
+      }
+    }
+
+    const [
+      totalTransactions,
+      totalRevenue,
+      statusBreakdown,
+      paymentMethodBreakdown
+    ] = await Promise.all([
+      prisma.transaction.count({ where }),
+      prisma.transaction.aggregate({
+        where: { ...where, status: 'PAID' },
+        _sum: { amount: true }
+      }),
+      prisma.transaction.groupBy({
+        by: ['status'],
+        where,
+        _count: { status: true },
+        _sum: { amount: true }
+      }),
+      prisma.transaction.groupBy({
+        by: ['paymentMethod'],
+        where: { ...where, status: 'PAID' },
+        _count: { paymentMethod: true },
+        _sum: { amount: true }
+      })
+    ]);
+
+    res.json({
+      summary: {
+        totalTransactions,
+        totalRevenue: totalRevenue._sum.amount || 0,
+        averageTransactionValue: totalTransactions > 0 ? (totalRevenue._sum.amount || 0) / totalTransactions : 0
+      },
+      statusBreakdown,
+      paymentMethodBreakdown
+    });
+  } catch (error) {
+    console.error("getTransactionStats error:", error);
+    res.status(500).json({ error: "Failed to fetch transaction statistics" });
+  }
+}
+
+// Refund transaction
+export async function refundTransaction(req: Request, res: Response) {
+  const { transactionId } = req.params;
+  const { reason, amount } = req.body;
+  const authUser: any = (req as any).user;
+
+  try {
+    // Only admin can process refunds
+    if (authUser.role !== "SUPER_ADMIN") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const existingTransaction = await prisma.transaction.findUnique({
+      where: { id: transactionId as string }
+    });
+
+    if (!existingTransaction) {
+      return res.status(404).json({ message: "Transaction not found" });
+    }
+
+    if (existingTransaction.status !== 'PAID') {
+      return res.status(400).json({ 
+        message: "Only paid transactions can be refunded" 
+      });
+    }
+
+    // Validate refund amount
+    const refundAmount = amount || existingTransaction.amount;
+    if (refundAmount > existingTransaction.amount) {
+      return res.status(400).json({ 
+        message: "Refund amount cannot exceed original transaction amount" 
+      });
+    }
+
+    // Update original transaction
+    const updatedTransaction = await prisma.transaction.update({
+      where: { id: transactionId as string },
+      data: {
+        status: 'REFUNDED',
+        description: existingTransaction.description 
+          ? `${existingTransaction.description} - REFUNDED: ${reason}`
+          : `REFUNDED: ${reason}`
+      }
+    });
+
+    // Create refund transaction record
+    const refundTransaction = await prisma.transaction.create({
+      data: {
+        patientId: existingTransaction.patientId,
+        appointmentId: existingTransaction.appointmentId,
+        amount: -refundAmount, // Negative amount for refund
+        paymentMethod: existingTransaction.paymentMethod,
+        description: `Refund for transaction ${transactionId}: ${reason}`,
+        status: 'PAID'
+      }
+    });
+
+    res.json({
+      originalTransaction: updatedTransaction,
+      refundTransaction,
+      message: "Transaction refunded successfully"
+    });
+  } catch (error) {
+    console.error("refundTransaction error:", error);
+    res.status(500).json({ error: "Failed to refund transaction" });
   }
 }

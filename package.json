@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-   "build": "tsc -p .",
+    "build": "tsc -p .",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "seed": "tsx prisma/seeder/seed.ts"
@@ -17,10 +17,12 @@
     "@prisma/client": "^7.4.1",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.0",
     "nodemon": "^3.1.14",
     "pg": "^8.18.0"
   },

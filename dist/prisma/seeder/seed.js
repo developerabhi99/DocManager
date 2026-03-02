@@ -78,7 +78,7 @@ async function main() {
     // DOCTOR
     await prisma.rolePermission.createMany({
         data: permissions
-            .filter((p) => ["VIEW_USERS", "VIEW_REPORTS", "VIEW_APPOINTMENT"].includes(p.key))
+            .filter((p) => ["VIEW_USERS", "VIEW_REPORTS", "VIEW_APPOINTMENT", "CREATE_APPOINTMENT", "MANAGE_APPOINTMENT"].includes(p.key))
             .map((p) => ({
             roleId: doctorRole.id,
             permissionId: p.id,

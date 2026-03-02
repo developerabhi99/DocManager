@@ -166,15 +166,29 @@ export async function getDoctorAvailability(req: Request, res: Response) {
     // Generate available time slots (30-minute intervals)
     const availableSlots = [];
     
+    console.log('Target date:', targetDate);
+    console.log('Day of week:', dayOfWeek);
+    
     for (const schedule of schedules) {
       const [startHour, startMin] = schedule.startTime.split(":").map(Number);
       const [endHour, endMin] = schedule.endTime.split(":").map(Number);
       
-      let currentTime = new Date(targetDate);
+      // Create date in local timezone by using the individual components
+      let currentTime = new Date();
+      currentTime.setFullYear(targetDate.getFullYear());
+      currentTime.setMonth(targetDate.getMonth());
+      currentTime.setDate(targetDate.getDate());
       currentTime.setHours(startHour || 0, startMin || 0, 0, 0);
       
-      const endTime = new Date(targetDate);
+      const endTime = new Date();
+      endTime.setFullYear(targetDate.getFullYear());
+      endTime.setMonth(targetDate.getMonth());
+      endTime.setDate(targetDate.getDate());
       endTime.setHours(endHour || 0, endMin || 0, 0);
+      
+      console.log('Schedule:', schedule);
+      console.log('Current time:', currentTime);
+      console.log('End time:', endTime);
 
       while (currentTime < endTime) {
         const slotEnd = new Date(currentTime);
@@ -190,10 +204,16 @@ export async function getDoctorAvailability(req: Request, res: Response) {
         });
 
         if (!hasConflict) {
-          availableSlots.push({
+          const slot = {
             startTime: currentTime.toISOString(),
             endTime: slotEnd.toISOString()
-          });
+          };
+          console.log('Adding slot:', slot);
+          
+          // Only add slots that are in the future
+          if (currentTime > new Date()) {
+            availableSlots.push(slot);
+          }
         }
 
         currentTime.setMinutes(currentTime.getMinutes() + 30);

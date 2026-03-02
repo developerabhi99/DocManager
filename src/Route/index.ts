@@ -16,12 +16,17 @@ import {
   createAppointment,
   listPatients,
   listAppointments,
+  processPayment,
+  completeAppointment,
+  referAppointment,
 } from "../controllers/appointment.controller.js";
 import {
   createTransaction,
   updateTransactionStatus,
   getPatientTransactions,
   getAllTransactions,
+  getTransactionStats,
+  refundTransaction,
 } from "../controllers/transaction.controller.js";
 import {
   createMedicalReport,
@@ -33,7 +38,7 @@ import {
 import {
   getMyAppointments,
   getAppointmentDetails,
-  completeAppointment,
+  completeAppointment as completeMyAppointment,
   getPatientHistory,
   getDoctorSchedule,
   getDoctorsAndPatients,
@@ -55,6 +60,15 @@ import {
 } from "../controllers/employeeSchedule.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
+import { upload } from "../index.js";
+
+interface MulterRequest extends Express.Request {
+  files?: {
+    [fieldname: string]: Express.Multer.File[];
+  } | undefined;
+  body?: any;
+  params?: any;
+}
 
 const router = express.Router();
 
@@ -147,6 +161,27 @@ router.get(
   listAppointments
 );
 
+// Payment and appointment management routes
+router.post(
+  "/appointments/:appointmentId/payment",
+  authenticate,
+  hasPermission("MANAGE_APPOINTMENT"),
+  processPayment
+);
+router.post(
+  "/appointments/:appointmentId/complete",
+  authenticate,
+  hasPermission("MANAGE_APPOINTMENT"),
+  upload.single('reportFile'),
+  (req: any, res: any) => completeAppointment(req as MulterRequest, res)
+);
+router.post(
+  "/appointments/:appointmentId/refer",
+  authenticate,
+  hasPermission("MANAGE_APPOINTMENT"),
+  referAppointment
+);
+
 // Schedule management routes
 router.get(
   "/doctors/:doctorId/schedules",
@@ -232,32 +267,24 @@ router.get(
   hasPermission("MANAGE_USERS"),
   getAllTransactions
 );
+router.get(
+  "/admin/transactions/stats",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  getTransactionStats
+);
+router.post(
+  "/transactions/:transactionId/refund",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  refundTransaction
+);
 
 // Medical report routes
 router.post(
   "/medical-reports",
   authenticate,
   createMedicalReport
-);
-router.put(
-  "/medical-reports/:reportId",
-  authenticate,
-  updateMedicalReport
-);
-router.get(
-  "/appointments/:appointmentId/medical-report",
-  authenticate,
-  getMedicalReportByAppointment
-);
-router.get(
-  "/patients/:patientId/medical-reports",
-  authenticate,
-  getPatientMedicalReports
-);
-router.post(
-  "/appointments/:appointmentId/refer",
-  authenticate,
-  referPatient
 );
 
 // My Appointments routes
@@ -275,11 +302,6 @@ router.get(
   "/appointments/:appointmentId/details",
   authenticate,
   getAppointmentDetails
-);
-router.post(
-  "/appointments/:appointmentId/complete",
-  authenticate,
-  completeAppointment
 );
 router.get(
   "/patients/:patientId/history",
