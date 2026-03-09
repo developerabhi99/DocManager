@@ -4,12 +4,19 @@ import { createUser, createPermission, createRole, createUserType, listPermissio
 import { createPatient, createAppointment, listPatients, listAppointments, processPayment, completeAppointment, referAppointment, } from "../controllers/appointment.controller.js";
 import { createTransaction, updateTransactionStatus, getPatientTransactions, getAllTransactions, getTransactionStats, refundTransaction, } from "../controllers/transaction.controller.js";
 import { createMedicalReport, updateMedicalReport, getMedicalReportByAppointment, getPatientMedicalReports, referPatient, } from "../controllers/medicalReport.controller.js";
+import { createDepartment, getDepartments, getDepartmentById, updateDepartment, deleteDepartment, assignEmployeeToDepartment, removeEmployeeFromDepartment, getEmployeesWithoutDepartment, } from "../controllers/department.controller.js";
 import { getMyAppointments, getAppointmentDetails, completeAppointment as completeMyAppointment, getPatientHistory, getDoctorSchedule, getDoctorsAndPatients, } from "../controllers/myAppointments.controller.js";
 import { getDoctorSchedules, upsertDoctorSchedule, deleteDoctorSchedule, getDoctorAvailability, getAllDoctorSchedules, } from "../controllers/schedule.controller.js";
 import { getEmployeeSchedules, upsertEmployeeSchedule, deleteEmployeeSchedule, getAllEmployeeSchedules, createDefaultSchedule, createDefaultSchedulesForAll, } from "../controllers/employeeSchedule.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
-import { upload } from "../index.js";
+import multer from "multer";
+const upload = multer({
+    dest: 'uploads/',
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    }
+});
 const router = express.Router();
 router.post("/login", login);
 router.put("/user/:id", authenticate, updateUserImage);
@@ -61,5 +68,14 @@ router.get("/admin/doctors-patients", authenticate, getDoctorsAndPatients);
 router.get("/appointments/:appointmentId/details", authenticate, getAppointmentDetails);
 router.get("/patients/:patientId/history", authenticate, getPatientHistory);
 router.get("/doctor/schedule", authenticate, getDoctorSchedule);
+// Department management routes
+router.get("/admin/departments", authenticate, hasPermission("MANAGE_USERS"), getDepartments);
+router.post("/admin/departments", authenticate, hasPermission("MANAGE_USERS"), createDepartment);
+router.get("/admin/departments/:id", authenticate, hasPermission("MANAGE_USERS"), getDepartmentById);
+router.put("/admin/departments/:id", authenticate, hasPermission("MANAGE_USERS"), updateDepartment);
+router.delete("/admin/departments/:id", authenticate, hasPermission("MANAGE_USERS"), deleteDepartment);
+router.post("/admin/departments/assign-employee", authenticate, hasPermission("MANAGE_USERS"), assignEmployeeToDepartment);
+router.delete("/admin/departments/remove-employee/:userId", authenticate, hasPermission("MANAGE_USERS"), removeEmployeeFromDepartment);
+router.get("/admin/employees/without-department", authenticate, hasPermission("MANAGE_USERS"), getEmployeesWithoutDepartment);
 export default router;
 //# sourceMappingURL=index.js.map

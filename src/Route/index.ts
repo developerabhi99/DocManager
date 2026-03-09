@@ -36,6 +36,16 @@ import {
   referPatient,
 } from "../controllers/medicalReport.controller.js";
 import {
+  createDepartment,
+  getDepartments,
+  getDepartmentById,
+  updateDepartment,
+  deleteDepartment,
+  assignEmployeeToDepartment,
+  removeEmployeeFromDepartment,
+  getEmployeesWithoutDepartment,
+} from "../controllers/department.controller.js";
+import {
   getMyAppointments,
   getAppointmentDetails,
   completeAppointment as completeMyAppointment,
@@ -60,7 +70,14 @@ import {
 } from "../controllers/employeeSchedule.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
-import { upload } from "../index.js";
+import multer from "multer";
+
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  }
+});
 
 interface MulterRequest extends Express.Request {
   files?: {
@@ -312,6 +329,56 @@ router.get(
   "/doctor/schedule",
   authenticate,
   getDoctorSchedule
+);
+
+// Department management routes
+router.get(
+  "/admin/departments",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  getDepartments
+);
+router.post(
+  "/admin/departments",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  createDepartment
+);
+router.get(
+  "/admin/departments/:id",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  getDepartmentById
+);
+router.put(
+  "/admin/departments/:id",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  updateDepartment
+);
+router.delete(
+  "/admin/departments/:id",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  deleteDepartment
+);
+router.post(
+  "/admin/departments/assign-employee",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  assignEmployeeToDepartment
+);
+router.delete(
+  "/admin/departments/remove-employee/:userId",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  removeEmployeeFromDepartment
+);
+router.get(
+  "/admin/employees/without-department",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  getEmployeesWithoutDepartment
 );
 
 export default router;

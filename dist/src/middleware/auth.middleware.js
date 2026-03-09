@@ -10,11 +10,16 @@ export function authenticate(req, res, next) {
         return res.status(401).json({ message: "Token missing" });
     }
     try {
+        // console.log('Attempting to verify token:', token.substring(0, 20) + '...');
+        // console.log('JWT_SECRET exists:', !!JWT_SECRET);
+        // console.log('JWT_SECRET length:', JWT_SECRET.length);
         const decoded = jwt.verify(token, JWT_SECRET);
+        // console.log('Token verified successfully:', decoded);
         req.user = decoded;
         next();
     }
-    catch {
+    catch (error) {
+        console.log('Token verification failed:', error.message);
         return res.status(401).json({ message: "Invalid token" });
     }
 }

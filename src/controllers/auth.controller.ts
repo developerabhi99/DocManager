@@ -23,7 +23,7 @@ export async function login(req: Request, res: Response) {
     },
   });
 
-  console.log(user);
+  //console.log(user);
 
   if (!user || !user.isActive) {
     return res.status(401).json({ message: "Invalid credentials" });
