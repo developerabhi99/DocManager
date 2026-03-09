@@ -6,20 +6,19 @@ export function authenticate(req, res, next) {
         return res.status(401).json({ message: "Token missing" });
     }
     const token = authHeader.split(" ")[1];
-    if (!token) {
+    if (!token || token === 'undefined' || token === 'null') {
         return res.status(401).json({ message: "Token missing" });
     }
     try {
-        // console.log('Attempting to verify token:', token.substring(0, 20) + '...');
-        // console.log('JWT_SECRET exists:', !!JWT_SECRET);
-        // console.log('JWT_SECRET length:', JWT_SECRET.length);
         const decoded = jwt.verify(token, JWT_SECRET);
-        // console.log('Token verified successfully:', decoded);
         req.user = decoded;
         next();
     }
     catch (error) {
-        console.log('Token verification failed:', error.message);
+        // Only log for debugging if it's not a common JWT error
+        if (!error.message.includes('malformed') && !error.message.includes('invalid signature')) {
+            console.log('Token verification failed:', error.message);
+        }
         return res.status(401).json({ message: "Invalid token" });
     }
 }

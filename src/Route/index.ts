@@ -1,7 +1,9 @@
+import type { Request, Response } from "express";
 import express from "express";
 import { login, updateUserImage } from "../controllers/auth.controller.js";
 import {
   createUser,
+  updateUserProfile,
   createPermission,
   createRole,
   createUserType,
@@ -30,10 +32,10 @@ import {
 } from "../controllers/transaction.controller.js";
 import {
   createMedicalReport,
+  createMedicalReportWithFile,
   updateMedicalReport,
   getMedicalReportByAppointment,
   getPatientMedicalReports,
-  referPatient,
 } from "../controllers/medicalReport.controller.js";
 import {
   createDepartment,
@@ -71,6 +73,7 @@ import {
 import { authenticate } from "../middleware/auth.middleware.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
 import multer from "multer";
+import { prisma } from "../config/db.js";
 
 const upload = multer({ 
   dest: 'uploads/',
@@ -97,7 +100,7 @@ router.get(
   "/users",
   authenticate,
   hasPermission("VIEW_USERS"),
-  (req, res) => {
+  (req: Request, res: Response) => {
     res.json({ message: "Users list" });
   }
 );
@@ -108,6 +111,12 @@ router.post(
   authenticate,
   hasPermission("MANAGE_USERS"),
   createUser
+);
+router.put(
+  "/admin/users/:id",
+  authenticate,
+  hasPermission("MANAGE_USERS"),
+  updateUserProfile
 );
 router.get(
   "/admin/roles",
@@ -156,25 +165,25 @@ router.post(
 router.post(
   "/admin/patients",
   authenticate,
-  hasPermission("CREATE_APPOINTMENT"),
+  hasPermission("MANAGE_APPOINTMENTS"),
   createPatient
 );
 router.get(
   "/admin/patients",
   authenticate,
-  hasPermission(["CREATE_APPOINTMENT", "MANAGE_APPOINTMENT"]),
+  hasPermission(["MANAGE_APPOINTMENTS"]),
   listPatients
 );
 router.post(
   "/admin/appointments",
   authenticate,
-  hasPermission("CREATE_APPOINTMENT"),
+  hasPermission("MANAGE_APPOINTMENTS"),
   createAppointment
 );
 router.get(
   "/admin/appointments",
   authenticate,
-  hasPermission(["CREATE_APPOINTMENT", "MANAGE_APPOINTMENT"]),
+  hasPermission(["MANAGE_APPOINTMENTS"]),
   listAppointments
 );
 
@@ -182,20 +191,20 @@ router.get(
 router.post(
   "/appointments/:appointmentId/payment",
   authenticate,
-  hasPermission("MANAGE_APPOINTMENT"),
+  hasPermission("MANAGE_APPOINTMENTS"),
   processPayment
 );
 router.post(
   "/appointments/:appointmentId/complete",
   authenticate,
-  hasPermission("MANAGE_APPOINTMENT"),
+  hasPermission("MANAGE_APPOINTMENTS"),
   upload.single('reportFile'),
   (req: any, res: any) => completeAppointment(req as MulterRequest, res)
 );
 router.post(
   "/appointments/:appointmentId/refer",
   authenticate,
-  hasPermission("MANAGE_APPOINTMENT"),
+  hasPermission("MANAGE_APPOINTMENTS"),
   referAppointment
 );
 
@@ -301,7 +310,56 @@ router.post(
 router.post(
   "/medical-reports",
   authenticate,
-  createMedicalReport
+  upload.single('file'),
+  createMedicalReportWithFile
+);
+router.put(
+  "/medical-reports/:reportId",
+  authenticate,
+  updateMedicalReport
+);
+router.get(
+  "/medical-reports/appointment/:appointmentId",
+  authenticate,
+  getMedicalReportByAppointment
+);
+router.get(
+  "/patients/:patientId/medical-reports",
+  authenticate,
+  getPatientMedicalReports
+);
+
+// File upload routes
+router.post(
+  "/admin/upload-file",
+  authenticate,
+  hasPermission("MANAGE_APPOINTMENTS"),
+  upload.single('file'),
+  (req: any, res: any) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const fileUrl = `/uploads/${req.file.filename}`;
+      const fileInfo = {
+        filename: req.file.originalname,
+        uploadedFile: req.file.filename,
+        fileUrl: fileUrl,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        uploadDate: new Date().toISOString()
+      };
+
+      res.json({
+        message: 'File uploaded successfully',
+        ...fileInfo
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      res.status(500).json({ error: 'Failed to upload file' });
+    }
+  }
 );
 
 // My Appointments routes
@@ -335,49 +393,49 @@ router.get(
 router.get(
   "/admin/departments",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission("MANAGE_DEPARTMENTS"),
   getDepartments
 );
 router.post(
   "/admin/departments",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission("MANAGE_DEPARTMENTS"),
   createDepartment
 );
 router.get(
   "/admin/departments/:id",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission("MANAGE_DEPARTMENTS"),
   getDepartmentById
 );
 router.put(
   "/admin/departments/:id",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission("MANAGE_DEPARTMENTS"),
   updateDepartment
 );
 router.delete(
   "/admin/departments/:id",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission("MANAGE_DEPARTMENTS"),
   deleteDepartment
 );
 router.post(
   "/admin/departments/assign-employee",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission("MANAGE_DEPARTMENTS"),
   assignEmployeeToDepartment
 );
 router.delete(
   "/admin/departments/remove-employee/:userId",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission("MANAGE_DEPARTMENTS"),
   removeEmployeeFromDepartment
 );
 router.get(
   "/admin/employees/without-department",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission("MANAGE_DEPARTMENTS"),
   getEmployeesWithoutDepartment
 );
 

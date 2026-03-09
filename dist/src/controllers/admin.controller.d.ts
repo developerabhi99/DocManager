@@ -8,4 +8,5 @@ export declare function updateRolePermissions(req: Request, res: Response): Prom
 export declare function createPermission(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 export declare function createUserType(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 export declare function createUser(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+export declare function updateUserProfile(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 //# sourceMappingURL=admin.controller.d.ts.map

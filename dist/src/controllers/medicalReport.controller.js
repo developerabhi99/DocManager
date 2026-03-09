@@ -1,4 +1,65 @@
 import { prisma } from "../config/db.js";
+// Create medical report with file upload
+export async function createMedicalReportWithFile(req, res) {
+    const { appointmentId, diagnosis, symptoms, treatment, prescription, notes } = req.body;
+    const authUser = req.user;
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        // Create file URL
+        const fileUrl = `/uploads/${req.file.filename}`;
+        // Verify the appointment exists and belongs to the doctor
+        const appointment = await prisma.appointment.findUnique({
+            where: { id: appointmentId },
+            include: {
+                doctor: true,
+                patient: true
+            }
+        });
+        if (!appointment) {
+            return res.status(404).json({ message: "Appointment not found" });
+        }
+        console.log("Appointment:", appointment);
+        console.log("Auth user:", authUser);
+        // Only the assigned doctor or Super Admin can create a report
+        if (appointment.doctorId !== authUser.userId && authUser.role !== 'SUPER_ADMIN') {
+            return res.status(403).json({ message: "Only the assigned doctor can create a medical report" });
+        }
+        // Check if report already exists
+        const existingReport = await prisma.medicalReport.findUnique({
+            where: { appointmentId }
+        });
+        if (existingReport) {
+            return res.status(400).json({ message: "Medical report already exists for this appointment" });
+        }
+        const report = await prisma.medicalReport.create({
+            data: {
+                appointmentId,
+                doctorId: authUser.userId,
+                diagnosis,
+                symptoms,
+                treatment,
+                prescription,
+                notes,
+                reportUrl: fileUrl
+            },
+            include: {
+                appointment: {
+                    include: {
+                        patient: true,
+                        doctor: true
+                    }
+                }
+            }
+        });
+        res.json(report);
+    }
+    catch (error) {
+        console.error("createMedicalReportWithFile error:", error);
+        res.status(500).json({ error: "Failed to create medical report" });
+    }
+}
 // Create medical report after appointment completion
 export async function createMedicalReport(req, res) {
     const { appointmentId, diagnosis, symptoms, treatment, prescription, notes, reportUrl } = req.body;
@@ -15,8 +76,8 @@ export async function createMedicalReport(req, res) {
         if (!appointment) {
             return res.status(404).json({ message: "Appointment not found" });
         }
-        // Only the assigned doctor can create a report
-        if (appointment.doctorId !== authUser.userId) {
+        // Only the assigned doctor or Super Admin can create a report
+        if (appointment.doctorId !== authUser.userId && authUser.role !== 'SUPER_ADMIN') {
             return res.status(403).json({ message: "Only the assigned doctor can create a medical report" });
         }
         // Check if report already exists
@@ -69,8 +130,8 @@ export async function updateMedicalReport(req, res) {
         if (!existingReport) {
             return res.status(404).json({ message: "Medical report not found" });
         }
-        // Only the assigned doctor can update the report
-        if (existingReport.doctorId !== authUser.userId) {
+        // Only the assigned doctor or Super Admin can update the report
+        if (existingReport.doctorId !== authUser.userId && authUser.role !== 'SUPER_ADMIN') {
             return res.status(403).json({ message: "Only the assigned doctor can update this medical report" });
         }
         const report = await prisma.medicalReport.update({
@@ -166,8 +227,8 @@ export async function referPatient(req, res) {
         if (!appointment) {
             return res.status(404).json({ message: "Appointment not found" });
         }
-        // Only the assigned doctor can refer the patient
-        if (appointment.doctorId !== authUser.userId) {
+        // Only the assigned doctor or Super Admin can refer the patient
+        if (appointment.doctorId !== authUser.userId && authUser.role !== 'SUPER_ADMIN') {
             return res.status(403).json({ message: "Only the assigned doctor can refer this patient" });
         }
         // Update appointment status and referral info

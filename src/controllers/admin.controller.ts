@@ -5,20 +5,38 @@ import { generateSalt, hashPassword } from "../utils/auth.js";
 export async function listUsers(req: Request, res: Response) {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      empId: true,
-      isActive: true,
-      imageUrl: true,
-      createdAt: true,
-      role: { select: { id: true, name: true } },
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: { permission: true },
+          },
+        },
+      },
       userType: { select: { id: true, name: true } },
+      department: { select: { id: true, name: true } },
     },
   });
 
-  return res.json({ users });
+  // Transform the data to match the expected format
+  const transformedUsers = users.map(user => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    empId: user.empId,
+    isActive: user.isActive,
+    imageUrl: user.imageUrl,
+    createdAt: user.createdAt,
+    role: {
+      id: user.role.id,
+      name: user.role.name,
+      permissions: (user.role.permissions || []).map((rp: any) => rp.permission.key),
+    },
+    userType: user.userType,
+    department: user.department,
+  }));
+
+  return res.json({ users: transformedUsers });
 }
 
 export async function listRoles(req: Request, res: Response) {
@@ -194,6 +212,7 @@ export async function createUser(req: Request, res: Response) {
     isActive,
     roleId,
     userTypeId,
+    departmentId,
   } = req.body || {};
 
   if (!name || typeof name !== "string") {
@@ -235,6 +254,16 @@ export async function createUser(req: Request, res: Response) {
     });
   }
 
+  // Validate departmentId if provided
+  let resolvedDepartmentId: string | null = null;
+  if (departmentId && typeof departmentId === "string" && departmentId.trim() !== "") {
+    const dept = await prisma.department.findUnique({ where: { id: departmentId } });
+    if (!dept) {
+      return res.status(400).json({ message: "Invalid departmentId" });
+    }
+    resolvedDepartmentId = departmentId;
+  }
+
   const salt = generateSalt();
   const hashed = hashPassword(password, salt);
 
@@ -248,19 +277,147 @@ export async function createUser(req: Request, res: Response) {
       isActive: typeof isActive === "boolean" ? isActive : true,
       roleId,
       userTypeId: resolvedUserTypeId,
+      departmentId: resolvedDepartmentId,
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      empId: true,
-      isActive: true,
-      imageUrl: true,
-      createdAt: true,
-      role: { select: { id: true, name: true } },
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: { permission: true },
+          },
+        },
+      },
       userType: { select: { id: true, name: true } },
+      department: { select: { id: true, name: true } },
     },
   });
 
-  return res.status(201).json({ user: created });
+  const transformedUser = {
+    id: created.id,
+    name: created.name,
+    email: created.email,
+    empId: created.empId,
+    isActive: created.isActive,
+    imageUrl: created.imageUrl,
+    createdAt: created.createdAt,
+    role: {
+      id: created.role.id,
+      name: created.role.name,
+      permissions: (created.role.permissions || []).map((rp: any) => rp.permission.key),
+    },
+    userType: created.userType,
+    department: created.department,
+  };
+
+  return res.status(201).json({ user: transformedUser });
+}
+
+export async function updateUserProfile(req: Request, res: Response) {
+  const { id } = req.params as { id: string };
+  const {
+    name,
+    email,
+    empId,
+    isActive,
+    roleId,
+    userTypeId,
+    departmentId,
+  } = req.body || {};
+
+  if (!name || typeof name !== "string") {
+    return res.status(400).json({ message: "name is required" });
+  }
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({ message: "email is required" });
+  }
+  if (!roleId || typeof roleId !== "string") {
+    return res.status(400).json({ message: "roleId is required" });
+  }
+
+  const existing = await prisma.user.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  // Check if email is being changed and if it already exists
+  if (email !== existing.email) {
+    const emailExists = await prisma.user.findUnique({ where: { email } });
+    if (emailExists) {
+      return res.status(409).json({ message: "Email already exists" });
+    }
+  }
+
+  const role = await prisma.role.findUnique({ where: { id: roleId } });
+  if (!role) {
+    return res.status(400).json({ message: "Invalid roleId" });
+  }
+
+  let resolvedUserTypeId: string | undefined =
+    typeof userTypeId === "string" && userTypeId.trim() !== ""
+      ? userTypeId
+      : undefined;
+
+  if (!resolvedUserTypeId) {
+    const ut = await prisma.userType.findUnique({ where: { name: role.name } });
+    resolvedUserTypeId = ut?.id;
+  }
+
+  if (!resolvedUserTypeId) {
+    return res.status(400).json({
+      message: "userTypeId is required (no matching user type found)",
+    });
+  }
+
+  // Validate departmentId if provided
+  let resolvedDepartmentId: string | null = null;
+  if (departmentId && typeof departmentId === "string" && departmentId.trim() !== "") {
+    const dept = await prisma.department.findUnique({ where: { id: departmentId } });
+    if (!dept) {
+      return res.status(400).json({ message: "Invalid departmentId" });
+    }
+    resolvedDepartmentId = departmentId;
+  }
+
+  const updated = await prisma.user.update({
+    where: { id },
+    data: {
+      name,
+      email,
+      empId: typeof empId === "string" ? empId : null,
+      isActive: typeof isActive === "boolean" ? isActive : existing.isActive,
+      roleId,
+      userTypeId: resolvedUserTypeId,
+      departmentId: resolvedDepartmentId,
+    },
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: { permission: true },
+          },
+        },
+      },
+      userType: { select: { id: true, name: true } },
+      department: { select: { id: true, name: true } },
+    },
+  });
+
+  const transformedUser = {
+    id: updated.id,
+    name: updated.name,
+    email: updated.email,
+    empId: updated.empId,
+    isActive: updated.isActive,
+    imageUrl: updated.imageUrl,
+    createdAt: updated.createdAt,
+    role: {
+      id: updated.role.id,
+      name: updated.role.name,
+      permissions: (updated.role.permissions || []).map((rp: any) => rp.permission.key),
+    },
+    userType: updated.userType,
+    department: updated.department,
+  };
+
+  return res.json({ user: transformedUser });
 }
