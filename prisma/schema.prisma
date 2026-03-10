@@ -106,8 +106,9 @@ model Patient {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  appointments Appointment[]
-  transactions Transaction[]
+  appointments      Appointment[]
+  transactions      Transaction[]
+  medicalReportGroups MedicalReportGroup[]
 }
 
 model Appointment {
@@ -147,10 +148,30 @@ model Transaction {
   updatedAt DateTime @updatedAt
 }
 
+model MedicalReportGroup {
+  id          String @id @default(cuid())
+  patientId   String
+  patient     Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  title       String? // e.g., "Chest Pain Treatment", "Diabetes Management"
+  description String?
+  status      String  @default("ACTIVE") // ACTIVE, COMPLETED, CLOSED
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  
+  reports     MedicalReport[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model MedicalReport {
-  id            String      @id @default(cuid())
-  appointmentId String      @unique
-  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(cuid())
+  appointmentId      String           @unique
+  appointment        Appointment      @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  
+  medicalReportGroupId String?
+  medicalReportGroup   MedicalReportGroup? @relation(fields: [medicalReportGroupId], references: [id], onDelete: SetNull)
 
   doctorId String
   doctor   User   @relation(fields: [doctorId], references: [id])
@@ -161,6 +182,18 @@ model MedicalReport {
   prescription String?
   notes        String?
   reportUrl    String? // File URL for uploaded reports
+  
+  // Form data fields for detailed examination
+  formData     Json?   // Store structured form data
+  vitalSigns   Json?   // Blood pressure, heart rate, temperature, etc.
+  labResults   Json?   // Lab test results
+  imaging      Json?   // X-ray, MRI, CT scan results
+  
+  // Referral information
+  isReferred    Boolean @default(false)
+  referredTo     String? // Department or doctor ID
+  referralReason String?
+  referralNotes  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

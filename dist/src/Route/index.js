@@ -1,9 +1,11 @@
 import express from "express";
 import { login, updateUserImage } from "../controllers/auth.controller.js";
 import { createUser, updateUserProfile, createPermission, createRole, createUserType, listPermissions, listRoles, listUsers, listUserTypes, updateRolePermissions, } from "../controllers/admin.controller.js";
-import { createPatient, createAppointment, listPatients, listAppointments, processPayment, completeAppointment, referAppointment, } from "../controllers/appointment.controller.js";
+import { createPatient, createAppointment, listPatients, listAppointments, processPayment, completeAppointment, referAppointment, createReferralAppointment, listDoctors, } from "../controllers/appointment.controller.js";
+import { getComprehensiveAppointmentDetails } from "../controllers/appointmentDetails.controller.js";
+import { getReferredAppointments, updateAppointmentStatus } from "../controllers/referred.controller.js";
 import { createTransaction, updateTransactionStatus, getPatientTransactions, getAllTransactions, getTransactionStats, refundTransaction, } from "../controllers/transaction.controller.js";
-import { createMedicalReport, createMedicalReportWithFile, updateMedicalReport, getMedicalReportByAppointment, getPatientMedicalReports, } from "../controllers/medicalReport.controller.js";
+import { createMedicalReport, createMedicalReportWithFile, updateMedicalReport, getMedicalReportByAppointment, getPatientMedicalReports, getPatientReports, getReportGroupDetails, createReportGroup, updateReportGroup, getMedicalReportById, updateMedicalReportEnhanced, getPatientVisitHistoryController, getAllReportGroups, getDashboardStats, } from "../controllers/medicalReport.controller.js";
 import { createDepartment, getDepartments, getDepartmentById, updateDepartment, deleteDepartment, assignEmployeeToDepartment, removeEmployeeFromDepartment, getEmployeesWithoutDepartment, } from "../controllers/department.controller.js";
 import { getMyAppointments, getAppointmentDetails, completeAppointment as completeMyAppointment, getPatientHistory, getDoctorSchedule, getDoctorsAndPatients, } from "../controllers/myAppointments.controller.js";
 import { getDoctorSchedules, upsertDoctorSchedule, deleteDoctorSchedule, getDoctorAvailability, getAllDoctorSchedules, } from "../controllers/schedule.controller.js";
@@ -38,10 +40,17 @@ router.post("/admin/patients", authenticate, hasPermission("MANAGE_APPOINTMENTS"
 router.get("/admin/patients", authenticate, hasPermission(["MANAGE_APPOINTMENTS"]), listPatients);
 router.post("/admin/appointments", authenticate, hasPermission("MANAGE_APPOINTMENTS"), createAppointment);
 router.get("/admin/appointments", authenticate, hasPermission(["MANAGE_APPOINTMENTS"]), listAppointments);
+router.get("/admin/doctors", authenticate, hasPermission(["MANAGE_APPOINTMENTS"]), listDoctors);
 // Payment and appointment management routes
 router.post("/appointments/:appointmentId/payment", authenticate, hasPermission("MANAGE_APPOINTMENTS"), processPayment);
 router.post("/appointments/:appointmentId/complete", authenticate, hasPermission("MANAGE_APPOINTMENTS"), upload.single('reportFile'), (req, res) => completeAppointment(req, res));
 router.post("/appointments/:appointmentId/refer", authenticate, hasPermission("MANAGE_APPOINTMENTS"), referAppointment);
+router.post("/appointments/referral", authenticate, hasPermission("MANAGE_APPOINTMENTS"), createReferralAppointment);
+// Appointment details route
+router.get("/appointments/:id/details", authenticate, hasPermission("MANAGE_APPOINTMENTS"), getComprehensiveAppointmentDetails);
+// Referred appointments routes
+router.get("/admin/referred-appointments", authenticate, hasPermission("MANAGE_APPOINTMENTS"), getReferredAppointments);
+router.put("/appointments/:id/status", authenticate, hasPermission("MANAGE_APPOINTMENTS"), updateAppointmentStatus);
 // Schedule management routes
 router.get("/doctors/:doctorId/schedules", authenticate, getDoctorSchedules);
 router.post("/doctors/:doctorId/schedules", authenticate, upsertDoctorSchedule);
@@ -67,6 +76,16 @@ router.post("/medical-reports", authenticate, upload.single('file'), createMedic
 router.put("/medical-reports/:reportId", authenticate, updateMedicalReport);
 router.get("/medical-reports/appointment/:appointmentId", authenticate, getMedicalReportByAppointment);
 router.get("/patients/:patientId/medical-reports", authenticate, getPatientMedicalReports);
+// Medical Report Group routes
+router.get("/patients/:patientId/report-groups", authenticate, getPatientReports);
+router.get("/report-groups/:reportGroupId", authenticate, getReportGroupDetails);
+router.post("/report-groups", authenticate, hasPermission("MANAGE_APPOINTMENTS"), createReportGroup);
+router.put("/report-groups/:reportGroupId", authenticate, hasPermission("MANAGE_APPOINTMENTS"), updateReportGroup);
+router.get("/medical-reports/:reportId", authenticate, getMedicalReportById);
+router.put("/medical-reports/:reportId/enhanced", authenticate, hasPermission("MANAGE_APPOINTMENTS"), updateMedicalReportEnhanced);
+router.get("/patients/:patientId/visit-history", authenticate, getPatientVisitHistoryController);
+router.get("/admin/report-groups", authenticate, hasPermission("MANAGE_USERS"), getAllReportGroups);
+router.get("/patients/:patientId/dashboard-stats", authenticate, getDashboardStats);
 // File upload routes
 router.post("/admin/upload-file", authenticate, hasPermission("MANAGE_APPOINTMENTS"), upload.single('file'), (req, res) => {
     try {
