@@ -4,9 +4,9 @@ export async function getDoctorSchedules(req, res) {
     const { doctorId } = req.params;
     const authUser = req.user;
     try {
-        // Users can only view their own schedules unless they're admin
-        if (authUser.userId !== doctorId && authUser.role !== "SUPER_ADMIN") {
-            return res.status(403).json({ message: "Access denied" });
+        // Users can only view their own schedules unless they're admin or they have permission
+        if (authUser.userId !== doctorId && authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
+            return res.status(403).json({ message: "Access denied www" });
         }
         const schedules = await prisma.doctorSchedule.findMany({
             where: { doctorId: doctorId },
@@ -29,7 +29,16 @@ export async function upsertDoctorSchedule(req, res) {
     const authUser = req.user;
     try {
         // Users can only manage their own schedules unless they're admin
-        if (authUser.userId !== doctorId && authUser.role !== "SUPER_ADMIN") {
+        // console.log("authUser", authUser);
+        // console.log("doctorId from params:", doctorId);
+        // console.log("authUser.userId:", authUser.userId);
+        // console.log("authUser.role:", authUser.role);
+        // console.log("authUser.permissions:", authUser.permissions);
+        // console.log("userId === doctorId:", authUser.userId === doctorId);
+        // console.log("role === SUPER_ADMIN:", authUser.role === "SUPER_ADMIN");
+        // console.log("has MANAGE_SCHEDULE:", authUser.permissions?.includes("MANAGE_SCHEDULE"));
+        if (authUser.userId !== doctorId && authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
+            console.log("ACCESS DENIED - All checks failed");
             return res.status(403).json({ message: "Access denied" });
         }
         // Validate time format
@@ -82,7 +91,8 @@ export async function deleteDoctorSchedule(req, res) {
     const authUser = req.user;
     try {
         // Users can only delete their own schedules unless they're admin
-        if (authUser.userId !== doctorId && authUser.role !== "SUPER_ADMIN") {
+        // console.log("authUser", authUser);
+        if (authUser.userId !== doctorId && authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
             return res.status(403).json({ message: "Access denied" });
         }
         const schedule = await prisma.doctorSchedule.findFirst({
@@ -202,7 +212,7 @@ export async function getAllDoctorSchedules(req, res) {
     const authUser = req.user;
     try {
         // Only admin or super admin can view all schedules
-        if (authUser.role !== "SUPER_ADMIN") {
+        if (authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
             return res.status(403).json({ message: "Access denied" });
         }
         const doctors = await prisma.user.findMany({

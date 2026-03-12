@@ -32,9 +32,10 @@ export function hasPermission(permissionKey: string | string[]) {
     const userPermissions: string[] = (user?.role?.permissions || []).map(
       (rp: any) => rp.permission?.key
     );
+    //console.log("User permissions:", userPermissions);
 
     const allowed = required.some((k) => userPermissions.includes(k));
-
+    //console.log("Allowed:", allowed);
     if (!allowed) {
       return res.status(403).json({ message: "Access denied" });
     }

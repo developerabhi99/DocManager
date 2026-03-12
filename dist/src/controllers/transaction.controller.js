@@ -156,9 +156,9 @@ export async function getAllTransactions(req, res) {
     const { page = 1, limit = 10, status, startDate, endDate, patientId, paymentMethod } = req.query;
     try {
         // Only admin can view all transactions
-        if (authUser.role !== "SUPER_ADMIN") {
-            return res.status(403).json({ message: "Access denied" });
-        }
+        // if (authUser.role !== "SUPER_ADMIN") {
+        //   return res.status(403).json({ message: "Access denied" });
+        // }
         const where = {};
         // Filter by status if provided
         if (status) {

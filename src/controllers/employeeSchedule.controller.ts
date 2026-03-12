@@ -8,7 +8,7 @@ export async function getEmployeeSchedules(req: Request, res: Response) {
 
   try {
     // Users can only view their own schedules unless they're admin
-    if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN") {
+    if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -35,7 +35,7 @@ export async function upsertEmployeeSchedule(req: Request, res: Response) {
 
   try {
     // Users can only manage their own schedules unless they're admin
-    if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN") {
+    if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -95,7 +95,7 @@ export async function deleteEmployeeSchedule(req: Request, res: Response) {
 
   try {
     // Users can only delete their own schedules unless they're admin
-    if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN") {
+    if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -127,7 +127,7 @@ export async function getAllEmployeeSchedules(req: Request, res: Response) {
 
   try {
     // Only admin or super admin can view all schedules
-    if (authUser.role !== "SUPER_ADMIN") {
+    if (authUser.role !== "SUPER_ADMIN" && authUser.role?.permissions !== "MANAGE_SCHEDULE") {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -162,7 +162,7 @@ export async function createDefaultSchedule(req: Request, res: Response) {
 
   try {
     // Only admin or super admin can create default schedules
-    if (authUser.role !== "SUPER_ADMIN") {
+    if (authUser.role !== "SUPER_ADMIN" && authUser.role?.permissions !== "MANAGE_SCHEDULE") {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -200,7 +200,7 @@ export async function createDefaultSchedulesForAll(req: Request, res: Response) 
 
   try {
     // Only super admin can create default schedules for all
-    if (authUser.role !== "SUPER_ADMIN") {
+    if (authUser.role !== "SUPER_ADMIN" && authUser.role?.permissions !== "MANAGE_SCHEDULE") {
       return res.status(403).json({ message: "Access denied" });
     }
 

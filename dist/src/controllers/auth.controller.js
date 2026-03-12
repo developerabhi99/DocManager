@@ -27,6 +27,7 @@ export async function login(req, res) {
     const token = generateToken({
         userId: user.id,
         role: user.role.name,
+        permissions: user.role.permissions.map(p => p.permission.key),
     });
     const defaultImageUrl = "https://ui-avatars.com/api/?background=11047A&color=fff&name=";
     const imageUrl = user.imageUrl && user.imageUrl.trim() !== ""
@@ -39,6 +40,7 @@ export async function login(req, res) {
             name: user.name,
             email: user.email,
             role: user.role.name,
+            permissions: user.role.permissions.map(p => p.permission.key),
             imageUrl,
         },
     });

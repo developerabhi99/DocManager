@@ -5,7 +5,7 @@ export async function getEmployeeSchedules(req, res) {
     const authUser = req.user;
     try {
         // Users can only view their own schedules unless they're admin
-        if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN") {
+        if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
             return res.status(403).json({ message: "Access denied" });
         }
         const schedules = await prisma.employeeSchedule.findMany({
@@ -29,7 +29,7 @@ export async function upsertEmployeeSchedule(req, res) {
     const authUser = req.user;
     try {
         // Users can only manage their own schedules unless they're admin
-        if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN") {
+        if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
             return res.status(403).json({ message: "Access denied" });
         }
         // Validate time format
@@ -82,7 +82,7 @@ export async function deleteEmployeeSchedule(req, res) {
     const authUser = req.user;
     try {
         // Users can only delete their own schedules unless they're admin
-        if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN") {
+        if (authUser.userId !== userId && authUser.role !== "SUPER_ADMIN" && !authUser.permissions?.includes("MANAGE_SCHEDULE")) {
             return res.status(403).json({ message: "Access denied" });
         }
         const schedule = await prisma.employeeSchedule.findFirst({
@@ -109,7 +109,7 @@ export async function getAllEmployeeSchedules(req, res) {
     const authUser = req.user;
     try {
         // Only admin or super admin can view all schedules
-        if (authUser.role !== "SUPER_ADMIN") {
+        if (authUser.role !== "SUPER_ADMIN" && authUser.role?.permissions !== "MANAGE_SCHEDULE") {
             return res.status(403).json({ message: "Access denied" });
         }
         const employees = await prisma.user.findMany({
@@ -141,7 +141,7 @@ export async function createDefaultSchedule(req, res) {
     const authUser = req.user;
     try {
         // Only admin or super admin can create default schedules
-        if (authUser.role !== "SUPER_ADMIN") {
+        if (authUser.role !== "SUPER_ADMIN" && authUser.role?.permissions !== "MANAGE_SCHEDULE") {
             return res.status(403).json({ message: "Access denied" });
         }
         // Default working hours: Monday-Friday, 9:00 AM - 5:00 PM
@@ -175,7 +175,7 @@ export async function createDefaultSchedulesForAll(req, res) {
     const authUser = req.user;
     try {
         // Only super admin can create default schedules for all
-        if (authUser.role !== "SUPER_ADMIN") {
+        if (authUser.role !== "SUPER_ADMIN" && authUser.role?.permissions !== "MANAGE_SCHEDULE") {
             return res.status(403).json({ message: "Access denied" });
         }
         // Get all active users without employee schedules

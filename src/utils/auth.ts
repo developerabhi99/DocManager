@@ -34,6 +34,7 @@ export function verifyPassword(
 export function generateToken(payload: {
   userId: string;
   role: string;
+  permissions?: string[];
 }) {
   return jwt.sign(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,

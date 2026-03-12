@@ -27,6 +27,7 @@ export function authenticate(
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    
     next();
   } catch (error) {
     // Only log for debugging if it's not a common JWT error

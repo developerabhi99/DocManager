@@ -4,6 +4,7 @@ import { prisma } from "../config/db.js";
 export async function getMyAppointments(req, res) {
     const authUser = req.user;
     const { doctorId, patientId } = req.query;
+    console.log("authUser", authUser);
     try {
         let appointments;
         let whereClause = {};
@@ -26,9 +27,10 @@ export async function getMyAppointments(req, res) {
                 orderBy: { dateTime: 'desc' }
             });
         }
-        else if (authUser.role === "DOCTOR") {
+        else if (authUser.role === "Doctor") {
             // Doctor sees their appointments (can filter by patient)
             whereClause.doctorId = authUser.userId;
+            console.log("whereClause", authUser);
             if (patientId) {
                 whereClause.patientId = patientId;
             }
@@ -154,7 +156,7 @@ export async function getPatientHistory(req, res) {
     const authUser = req.user;
     try {
         // Check if user has access to patient history
-        if (authUser.userId !== patientId && authUser.role !== "SUPER_ADMIN" && authUser.role !== "DOCTOR") {
+        if (authUser.userId !== patientId && authUser.role !== "SUPER_ADMIN" && authUser.role !== "Doctor") {
             return res.status(403).json({ message: "Access denied" });
         }
         const appointments = await prisma.appointment.findMany({
@@ -242,7 +244,7 @@ export async function getDoctorsAndPatients(req, res) {
 export async function getDoctorSchedule(req, res) {
     const authUser = req.user;
     try {
-        if (authUser.role !== "DOCTOR" && authUser.role !== "SUPER_ADMIN") {
+        if (authUser.role !== "Doctor" && authUser.role !== "SUPER_ADMIN") {
             return res.status(403).json({ message: "Access denied" });
         }
         let appointments;

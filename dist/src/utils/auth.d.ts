@@ -5,6 +5,7 @@ export declare function verifyPassword(password: string, salt: string, hashedPas
 export declare function generateToken(payload: {
     userId: string;
     role: string;
+    permissions?: string[];
 }): string;
 export declare function verifyToken(token: string): string | jwt.JwtPayload;
 //# sourceMappingURL=auth.d.ts.map

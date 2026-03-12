@@ -25,6 +25,7 @@ import {
   listDoctors,
 } from "../controllers/appointment.controller.js";
 import { getComprehensiveAppointmentDetails } from "../controllers/appointmentDetails.controller.js";
+import { getPatientCompleteHistory } from "../controllers/patientHistory.controller.js";
 import { getReferredAppointments, updateAppointmentStatus } from "../controllers/referred.controller.js";
 import {
   createTransaction,
@@ -118,7 +119,7 @@ router.get(
   }
 );
 
-router.get("/admin/users", authenticate, hasPermission("MANAGE_USERS"), listUsers);
+router.get("/admin/users", authenticate, hasPermission(["MANAGE_USERS","MANAGE_APPOINTMENTS"]), listUsers);
 router.post(
   "/admin/users",
   authenticate,
@@ -338,19 +339,19 @@ router.get(
 router.get(
   "/admin/transactions",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission(["MANAGE_USERS","MANAGE_TRANSACTIONS"]),
   getAllTransactions
 );
 router.get(
   "/admin/transactions/stats",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission(["MANAGE_USERS","MANAGE_TRANSACTIONS"]),
   getTransactionStats
 );
 router.post(
   "/transactions/:transactionId/refund",
   authenticate,
-  hasPermission("MANAGE_USERS"),
+  hasPermission(["MANAGE_USERS","MANAGE_TRANSACTIONS"]),
   refundTransaction
 );
 

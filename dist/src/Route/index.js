@@ -3,6 +3,7 @@ import { login, updateUserImage } from "../controllers/auth.controller.js";
 import { createUser, updateUserProfile, createPermission, createRole, createUserType, listPermissions, listRoles, listUsers, listUserTypes, updateRolePermissions, } from "../controllers/admin.controller.js";
 import { createPatient, createAppointment, listPatients, listAppointments, processPayment, completeAppointment, referAppointment, createReferralAppointment, listDoctors, } from "../controllers/appointment.controller.js";
 import { getComprehensiveAppointmentDetails } from "../controllers/appointmentDetails.controller.js";
+import { getPatientCompleteHistory } from "../controllers/patientHistory.controller.js";
 import { getReferredAppointments, updateAppointmentStatus } from "../controllers/referred.controller.js";
 import { createTransaction, updateTransactionStatus, getPatientTransactions, getAllTransactions, getTransactionStats, refundTransaction, } from "../controllers/transaction.controller.js";
 import { createMedicalReport, createMedicalReportWithFile, updateMedicalReport, getMedicalReportByAppointment, getPatientMedicalReports, getPatientReports, getReportGroupDetails, createReportGroup, updateReportGroup, getMedicalReportById, updateMedicalReportEnhanced, getPatientVisitHistoryController, getAllReportGroups, getDashboardStats, } from "../controllers/medicalReport.controller.js";
@@ -26,7 +27,7 @@ router.put("/user/:id", authenticate, updateUserImage);
 router.get("/users", authenticate, hasPermission("VIEW_USERS"), (req, res) => {
     res.json({ message: "Users list" });
 });
-router.get("/admin/users", authenticate, hasPermission("MANAGE_USERS"), listUsers);
+router.get("/admin/users", authenticate, hasPermission(["MANAGE_USERS", "MANAGE_APPOINTMENTS"]), listUsers);
 router.post("/admin/users", authenticate, hasPermission("MANAGE_USERS"), createUser);
 router.put("/admin/users/:id", authenticate, hasPermission("MANAGE_USERS"), updateUserProfile);
 router.get("/admin/roles", authenticate, hasPermission(["MANAGE_USERS", "MANAGE_ROLES"]), listRoles);
@@ -68,9 +69,9 @@ router.post("/admin/employees/create-default-schedules", authenticate, hasPermis
 router.post("/transactions", authenticate, createTransaction);
 router.put("/transactions/:transactionId/status", authenticate, updateTransactionStatus);
 router.get("/patients/:patientId/transactions", authenticate, getPatientTransactions);
-router.get("/admin/transactions", authenticate, hasPermission("MANAGE_USERS"), getAllTransactions);
-router.get("/admin/transactions/stats", authenticate, hasPermission("MANAGE_USERS"), getTransactionStats);
-router.post("/transactions/:transactionId/refund", authenticate, hasPermission("MANAGE_USERS"), refundTransaction);
+router.get("/admin/transactions", authenticate, hasPermission(["MANAGE_USERS", "MANAGE_TRANSACTIONS"]), getAllTransactions);
+router.get("/admin/transactions/stats", authenticate, hasPermission(["MANAGE_USERS", "MANAGE_TRANSACTIONS"]), getTransactionStats);
+router.post("/transactions/:transactionId/refund", authenticate, hasPermission(["MANAGE_USERS", "MANAGE_TRANSACTIONS"]), refundTransaction);
 // Medical report routes
 router.post("/medical-reports", authenticate, upload.single('file'), createMedicalReportWithFile);
 router.put("/medical-reports/:reportId", authenticate, updateMedicalReport);

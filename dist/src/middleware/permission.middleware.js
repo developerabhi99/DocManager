@@ -22,7 +22,9 @@ export function hasPermission(permissionKey) {
             },
         });
         const userPermissions = (user?.role?.permissions || []).map((rp) => rp.permission?.key);
+        //console.log("User permissions:", userPermissions);
         const allowed = required.some((k) => userPermissions.includes(k));
+        //console.log("Allowed:", allowed);
         if (!allowed) {
             return res.status(403).json({ message: "Access denied" });
         }
