@@ -1,6 +1,6 @@
 import express from "express";
-import { login, updateUserImage } from "../controllers/auth.controller.js";
-import { createUser, updateUserProfile, createPermission, createRole, createUserType, listPermissions, listRoles, listUsers, listUserTypes, updateRolePermissions, } from "../controllers/admin.controller.js";
+import { login, updateUserImage } from "../controllers/auth.controller";
+import { createUser, updateUserProfile, createPermission, createRole, createUserType, listPermissions, listRoles, listUsers, listUserTypes, updateRolePermissions, } from "../controllers/admin.controller";
 import { createPatient, createAppointment, listPatients, listAppointments, processPayment, completeAppointment, referAppointment, createReferralAppointment, listDoctors, } from "../controllers/appointment.controller.js";
 import { getComprehensiveAppointmentDetails } from "../controllers/appointmentDetails.controller.js";
 import { getPatientCompleteHistory } from "../controllers/patientHistory.controller.js";
@@ -9,12 +9,13 @@ import { createTransaction, updateTransactionStatus, getPatientTransactions, get
 import { createMedicalReport, createMedicalReportWithFile, updateMedicalReport, getMedicalReportByAppointment, getPatientMedicalReports, getPatientReports, getReportGroupDetails, createReportGroup, updateReportGroup, getMedicalReportById, updateMedicalReportEnhanced, getPatientVisitHistoryController, getAllReportGroups, getDashboardStats, } from "../controllers/medicalReport.controller.js";
 import { createDepartment, getDepartments, getDepartmentById, updateDepartment, deleteDepartment, assignEmployeeToDepartment, removeEmployeeFromDepartment, getEmployeesWithoutDepartment, } from "../controllers/department.controller.js";
 import { getMyAppointments, getAppointmentDetails, completeAppointment as completeMyAppointment, getPatientHistory, getDoctorSchedule, getDoctorsAndPatients, } from "../controllers/myAppointments.controller.js";
-import { getDoctorSchedules, upsertDoctorSchedule, deleteDoctorSchedule, getDoctorAvailability, getAllDoctorSchedules, } from "../controllers/schedule.controller.js";
+import { getDoctorSchedules, upsertDoctorSchedule, deleteDoctorSchedule, getDoctorAvailability, getAllDoctorSchedules, getEmployeeAvailability, } from "../controllers/schedule.controller.js";
 import { getEmployeeSchedules, upsertEmployeeSchedule, deleteEmployeeSchedule, getAllEmployeeSchedules, createDefaultSchedule, createDefaultSchedulesForAll, } from "../controllers/employeeSchedule.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
 import multer from "multer";
 import { prisma } from "../config/db.js";
+import { getDashboardStats as getDashboardStatsController, getUsersCount, getAppointmentsCount, getReportsCount, } from "../controllers/dashboard.controller.js";
 const upload = multer({
     dest: 'uploads/',
     limits: {
@@ -38,25 +39,26 @@ router.put("/admin/roles/:roleId/permissions", authenticate, hasPermission("MANA
 router.post("/admin/permissions", authenticate, hasPermission("MANAGE_ROLES"), createPermission);
 router.post("/admin/user-types", authenticate, hasPermission("MANAGE_ROLES"), createUserType);
 router.post("/admin/patients", authenticate, hasPermission("MANAGE_APPOINTMENTS"), createPatient);
-router.get("/admin/patients", authenticate, hasPermission(["MANAGE_APPOINTMENTS"]), listPatients);
+router.get("/admin/patients", authenticate, listPatients);
 router.post("/admin/appointments", authenticate, hasPermission("MANAGE_APPOINTMENTS"), createAppointment);
 router.get("/admin/appointments", authenticate, hasPermission(["MANAGE_APPOINTMENTS"]), listAppointments);
 router.get("/admin/doctors", authenticate, hasPermission(["MANAGE_APPOINTMENTS"]), listDoctors);
 // Payment and appointment management routes
 router.post("/appointments/:appointmentId/payment", authenticate, hasPermission("MANAGE_APPOINTMENTS"), processPayment);
-router.post("/appointments/:appointmentId/complete", authenticate, hasPermission("MANAGE_APPOINTMENTS"), upload.single('reportFile'), (req, res) => completeAppointment(req, res));
-router.post("/appointments/:appointmentId/refer", authenticate, hasPermission("MANAGE_APPOINTMENTS"), referAppointment);
-router.post("/appointments/referral", authenticate, hasPermission("MANAGE_APPOINTMENTS"), createReferralAppointment);
+router.post("/appointments/:appointmentId/complete", authenticate, hasPermission(["MANAGE_APPOINTMENTS", "COMPLETE_REFER_APPOINTMENTS"]), upload.single('reportFile'), (req, res) => completeAppointment(req, res));
+router.post("/appointments/:appointmentId/refer", authenticate, hasPermission(["MANAGE_APPOINTMENTS", "COMPLETE_REFER_APPOINTMENTS"]), referAppointment);
+router.post("/appointments/referral", authenticate, hasPermission(["MANAGE_APPOINTMENTS", "COMPLETE_REFER_APPOINTMENTS"]), createReferralAppointment);
 // Appointment details route
-router.get("/appointments/:id/details", authenticate, hasPermission("MANAGE_APPOINTMENTS"), getComprehensiveAppointmentDetails);
+router.get("/appointments/:id/details", authenticate, hasPermission(["MANAGE_APPOINTMENTS", "COMPLETE_REFER_APPOINTMENTS"]), getComprehensiveAppointmentDetails);
 // Referred appointments routes
-router.get("/admin/referred-appointments", authenticate, hasPermission("MANAGE_APPOINTMENTS"), getReferredAppointments);
-router.put("/appointments/:id/status", authenticate, hasPermission("MANAGE_APPOINTMENTS"), updateAppointmentStatus);
+router.get("/admin/referred-appointments", authenticate, hasPermission(["MANAGE_APPOINTMENTS"]), getReferredAppointments);
+router.put("/appointments/:id/status", authenticate, hasPermission(["MANAGE_APPOINTMENTS", "COMPLETE_REFER_APPOINTMENTS"]), updateAppointmentStatus);
 // Schedule management routes
 router.get("/doctors/:doctorId/schedules", authenticate, getDoctorSchedules);
 router.post("/doctors/:doctorId/schedules", authenticate, upsertDoctorSchedule);
 router.delete("/doctors/:doctorId/schedules/:scheduleId", authenticate, deleteDoctorSchedule);
 router.get("/doctors/:doctorId/availability", authenticate, getDoctorAvailability);
+router.get("/employees/:employeeId/availability", authenticate, getEmployeeAvailability);
 router.get("/admin/doctors/schedules", authenticate, hasPermission("MANAGE_USERS"), getAllDoctorSchedules);
 // Employee schedule management routes
 router.get("/employees/:userId/schedules", authenticate, getEmployeeSchedules);
@@ -116,10 +118,10 @@ router.post("/admin/upload-file", authenticate, hasPermission("MANAGE_APPOINTMEN
 router.get("/my-appointments", authenticate, getMyAppointments);
 router.get("/admin/doctors-patients", authenticate, getDoctorsAndPatients);
 router.get("/appointments/:appointmentId/details", authenticate, getAppointmentDetails);
-router.get("/patients/:patientId/history", authenticate, getPatientHistory);
+router.get("/admin/patients/:patientId/history", authenticate, getPatientCompleteHistory);
 router.get("/doctor/schedule", authenticate, getDoctorSchedule);
 // Department management routes
-router.get("/admin/departments", authenticate, hasPermission("MANAGE_DEPARTMENTS"), getDepartments);
+router.get("/admin/departments", authenticate, getDepartments);
 router.post("/admin/departments", authenticate, hasPermission("MANAGE_DEPARTMENTS"), createDepartment);
 router.get("/admin/departments/:id", authenticate, hasPermission("MANAGE_DEPARTMENTS"), getDepartmentById);
 router.put("/admin/departments/:id", authenticate, hasPermission("MANAGE_DEPARTMENTS"), updateDepartment);
@@ -127,5 +129,10 @@ router.delete("/admin/departments/:id", authenticate, hasPermission("MANAGE_DEPA
 router.post("/admin/departments/assign-employee", authenticate, hasPermission("MANAGE_DEPARTMENTS"), assignEmployeeToDepartment);
 router.delete("/admin/departments/remove-employee/:userId", authenticate, hasPermission("MANAGE_DEPARTMENTS"), removeEmployeeFromDepartment);
 router.get("/admin/employees/without-department", authenticate, hasPermission("MANAGE_DEPARTMENTS"), getEmployeesWithoutDepartment);
+// Dashboard routes
+router.get("/admin/dashboard/stats", authenticate, getDashboardStatsController);
+router.get("/admin/users/count", authenticate, hasPermission(["MANAGE_USERS"]), getUsersCount);
+router.get("/admin/appointments/count", authenticate, hasPermission(["MANAGE_APPOINTMENTS"]), getAppointmentsCount);
+router.get("/admin/reports/count", authenticate, hasPermission(["VIEW_REPORTS"]), getReportsCount);
 export default router;
 //# sourceMappingURL=index.js.map

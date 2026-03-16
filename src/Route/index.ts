@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import express from "express";
-import { login, updateUserImage } from "../controllers/auth.controller.js";
+import { login, updateUserImage } from "../controllers/auth.controller";
 import {
   createUser,
   updateUserProfile,
@@ -12,7 +12,7 @@ import {
   listUsers,
   listUserTypes,
   updateRolePermissions,
-} from "../controllers/admin.controller.js";
+} from "../controllers/admin.controller";
 import {
   createPatient,
   createAppointment,
@@ -75,6 +75,7 @@ import {
   deleteDoctorSchedule,
   getDoctorAvailability,
   getAllDoctorSchedules,
+  getEmployeeAvailability,
 } from "../controllers/schedule.controller.js";
 import {
   getEmployeeSchedules,
@@ -88,6 +89,12 @@ import { authenticate } from "../middleware/auth.middleware.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
 import multer from "multer";
 import { prisma } from "../config/db.js";
+import {
+  getDashboardStats as getDashboardStatsController,
+  getUsersCount,
+  getAppointmentsCount,
+  getReportsCount,
+} from "../controllers/dashboard.controller.js";
 
 const upload = multer({ 
   dest: 'uploads/',
@@ -185,7 +192,6 @@ router.post(
 router.get(
   "/admin/patients",
   authenticate,
-  hasPermission(["MANAGE_APPOINTMENTS"]),
   listPatients
 );
 router.post(
@@ -217,20 +223,20 @@ router.post(
 router.post(
   "/appointments/:appointmentId/complete",
   authenticate,
-  hasPermission("MANAGE_APPOINTMENTS"),
+  hasPermission(["MANAGE_APPOINTMENTS","COMPLETE_REFER_APPOINTMENTS"]),
   upload.single('reportFile'),
   (req: any, res: any) => completeAppointment(req as MulterRequest, res)
 );
 router.post(
   "/appointments/:appointmentId/refer",
   authenticate,
-  hasPermission("MANAGE_APPOINTMENTS"),
+  hasPermission(["MANAGE_APPOINTMENTS","COMPLETE_REFER_APPOINTMENTS"]),
   referAppointment
 );
 router.post(
   "/appointments/referral",
   authenticate,
-  hasPermission("MANAGE_APPOINTMENTS"),
+  hasPermission(["MANAGE_APPOINTMENTS","COMPLETE_REFER_APPOINTMENTS"]),
   createReferralAppointment
 );
 
@@ -238,7 +244,7 @@ router.post(
 router.get(
   "/appointments/:id/details",
   authenticate,
-  hasPermission("MANAGE_APPOINTMENTS"),
+  hasPermission(["MANAGE_APPOINTMENTS","COMPLETE_REFER_APPOINTMENTS"]),
   getComprehensiveAppointmentDetails
 );
 
@@ -246,14 +252,14 @@ router.get(
 router.get(
   "/admin/referred-appointments",
   authenticate,
-  hasPermission("MANAGE_APPOINTMENTS"),
+  hasPermission(["MANAGE_APPOINTMENTS"]),
   getReferredAppointments
 );
 
 router.put(
   "/appointments/:id/status",
   authenticate,
-  hasPermission("MANAGE_APPOINTMENTS"),
+  hasPermission(["MANAGE_APPOINTMENTS","COMPLETE_REFER_APPOINTMENTS"]),
   updateAppointmentStatus
 );
 
@@ -277,6 +283,11 @@ router.get(
   "/doctors/:doctorId/availability",
   authenticate,
   getDoctorAvailability
+);
+router.get(
+  "/employees/:employeeId/availability",
+  authenticate,
+  getEmployeeAvailability
 );
 router.get(
   "/admin/doctors/schedules",
@@ -479,9 +490,9 @@ router.get(
   getAppointmentDetails
 );
 router.get(
-  "/patients/:patientId/history",
+  "/admin/patients/:patientId/history",
   authenticate,
-  getPatientHistory
+  getPatientCompleteHistory
 );
 router.get(
   "/doctor/schedule",
@@ -493,7 +504,6 @@ router.get(
 router.get(
   "/admin/departments",
   authenticate,
-  hasPermission("MANAGE_DEPARTMENTS"),
   getDepartments
 );
 router.post(
@@ -537,6 +547,34 @@ router.get(
   authenticate,
   hasPermission("MANAGE_DEPARTMENTS"),
   getEmployeesWithoutDepartment
+);
+
+// Dashboard routes
+router.get(
+  "/admin/dashboard/stats",
+  authenticate,
+  getDashboardStatsController
+);
+
+router.get(
+  "/admin/users/count",
+  authenticate,
+  hasPermission(["MANAGE_USERS"]),
+  getUsersCount
+);
+
+router.get(
+  "/admin/appointments/count",
+  authenticate,
+  hasPermission(["MANAGE_APPOINTMENTS"]),
+  getAppointmentsCount
+);
+
+router.get(
+  "/admin/reports/count",
+  authenticate,
+  hasPermission(["VIEW_REPORTS"]),
+  getReportsCount
 );
 
 export default router;

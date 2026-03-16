@@ -45,8 +45,8 @@ export async function getMyAppointments(req, res) {
             });
         }
         else {
-            // Patient sees their appointments only
-            whereClause.patientId = authUser.userId;
+            // Other than main Doctor sees their appointments only
+            whereClause.doctorId = authUser.userId;
             appointments = await prisma.appointment.findMany({
                 where: whereClause,
                 include: {
@@ -57,6 +57,7 @@ export async function getMyAppointments(req, res) {
                 orderBy: { dateTime: 'desc' }
             });
         }
+        console.log("appointments", appointments);
         res.json(appointments);
     }
     catch (error) {

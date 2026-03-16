@@ -2,10 +2,23 @@ import { prisma } from '../config/db.js';
 export const createPatient = async (req, res) => {
     try {
         const { name, email, phone, address, age, gender } = req.body;
+        // Create patient
         const patient = await prisma.patient.create({
             data: { name, email, phone, address, age, gender },
         });
-        res.json(patient);
+        // Create a medical report group for the new patient
+        const medicalReportGroup = await prisma.medicalReportGroup.create({
+            data: {
+                patientId: patient.id,
+                title: "Initial Visit" + name + " - " + new Date().toISOString().split('T')[0],
+                description: "First medical report group for patient",
+                status: "ACTIVE"
+            }
+        });
+        res.json({
+            patient,
+            medicalReportGroupId: medicalReportGroup.id
+        });
     }
     catch (error) {
         console.error('createPatient error:', error);
@@ -26,28 +39,117 @@ export const listPatients = async (req, res) => {
 };
 export const createAppointment = async (req, res) => {
     try {
+        const authUser = req.user; // User should be set by authenticate middleware
         const { patientId, doctorId, dateTime, notes } = req.body;
+        console.log("Appointment creation - Logged in user:", {
+            userId: authUser.userId,
+            role: authUser.role,
+            permissions: authUser.permissions
+        });
+        console.log("Appointment creation - Parameters:", {
+            patientId,
+            doctorId,
+            dateTime,
+            notes
+        });
         // Validate that the appointment time is in the future
         const appointmentTime = new Date(dateTime);
-        console.log(req);
+        // console.log(req);
         if (appointmentTime <= new Date()) {
             return res.status(400).json({ error: 'Appointment time must be in the future' });
         }
         // Check if doctor is available at this time
         const dayOfWeek = appointmentTime.getDay();
         const appointmentStartTime = appointmentTime.toTimeString().slice(0, 5); // HH:MM format
-        // Get doctor's schedule for this day
-        const doctorSchedule = await prisma.doctorSchedule.findFirst({
-            where: {
-                doctorId,
-                dayOfWeek,
-                isAvailable: true,
-                startTime: { lte: appointmentStartTime },
-                endTime: { gt: appointmentStartTime }
-            }
+        // First, check if the doctorId is actually a doctor or an employee
+        console.log("Doctor Id", doctorId);
+        const user = await prisma.user.findUnique({
+            where: { id: doctorId },
+            include: { role: true } // Include the role relation
         });
-        if (!doctorSchedule) {
-            return res.status(400).json({ error: 'Doctor is not available at this time' });
+        if (!user) {
+            return res.status(400).json({ error: 'Doctor/Employee not found' });
+        }
+        let schedule;
+        let scheduleType;
+        console.log("Full user object:", user);
+        console.log("User role object:", user.role);
+        console.log("User role type:", typeof user.role);
+        if (typeof user.role === 'string') {
+            // If role is a string, use it directly
+            const userRoleName = user.role;
+            console.log("Role is string:", userRoleName);
+            if (userRoleName === 'Doctor') {
+                schedule = await prisma.doctorSchedule.findFirst({
+                    where: {
+                        doctorId,
+                        dayOfWeek,
+                        isAvailable: true,
+                        startTime: { lte: appointmentStartTime },
+                        endTime: { gt: appointmentStartTime }
+                    }
+                });
+                scheduleType = 'Doctor';
+            }
+            else {
+                schedule = await prisma.employeeSchedule.findFirst({
+                    where: {
+                        userId: doctorId,
+                        dayOfWeek,
+                        isAvailable: true,
+                        startTime: { lte: appointmentStartTime },
+                        endTime: { gt: appointmentStartTime }
+                    }
+                });
+                scheduleType = 'Employee';
+            }
+        }
+        else if (user.role && typeof user.role === 'object' && 'name' in user.role) {
+            // If role is an object with name property
+            const userRoleName = user.role.name;
+            console.log("Role is object with name:", userRoleName);
+            if (userRoleName === 'Doctor') {
+                schedule = await prisma.doctorSchedule.findFirst({
+                    where: {
+                        doctorId,
+                        dayOfWeek,
+                        isAvailable: true,
+                        startTime: { lte: appointmentStartTime },
+                        endTime: { gt: appointmentStartTime }
+                    }
+                });
+                scheduleType = 'Doctor';
+            }
+            else {
+                schedule = await prisma.employeeSchedule.findFirst({
+                    where: {
+                        userId: doctorId,
+                        dayOfWeek,
+                        isAvailable: true,
+                        startTime: { lte: appointmentStartTime },
+                        endTime: { gt: appointmentStartTime }
+                    }
+                });
+                scheduleType = 'Employee';
+            }
+        }
+        else {
+            // Fallback - treat as employee if role structure is unexpected
+            console.log("Role structure unexpected, treating as employee");
+            schedule = await prisma.employeeSchedule.findFirst({
+                where: {
+                    userId: doctorId,
+                    dayOfWeek,
+                    isAvailable: true,
+                    startTime: { lte: appointmentStartTime },
+                    endTime: { gt: appointmentStartTime }
+                }
+            });
+            scheduleType = 'Employee';
+        }
+        console.log(`Checking ${scheduleType} schedule for ${doctorId}:`, schedule);
+        if (!schedule) {
+            return res.status(400).json({ error: `${scheduleType} is not available at this time` });
         }
         // Check for existing appointments at the same time (30-minute slots)
         const slotStart = new Date(appointmentTime);
@@ -369,18 +471,51 @@ export const createReferralAppointment = async (req, res) => {
         // Check if doctor is available at this time
         const dayOfWeek = appointmentTime.getDay();
         const appointmentStartTime = appointmentTime.toTimeString().slice(0, 5); // HH:MM format
-        // Get doctor's schedule for this day
-        const doctorSchedule = await prisma.doctorSchedule.findFirst({
-            where: {
-                doctorId,
-                dayOfWeek,
-                isAvailable: true,
-                startTime: { lte: appointmentStartTime },
-                endTime: { gt: appointmentStartTime }
-            }
+        // First, check if the doctorId is actually a doctor or an employee
+        const user = await prisma.user.findUnique({
+            where: { id: doctorId },
+            include: { role: true } // Include the role relation
         });
-        if (!doctorSchedule) {
-            return res.status(400).json({ error: 'Doctor is not available at this time' });
+        if (!user) {
+            return res.status(400).json({ error: 'Doctor/Employee not found' });
+        }
+        let schedule;
+        let scheduleType;
+        // Simple role check - treat non-Doctor roles as employees
+        const isDoctor = user.role?.name === 'Doctor';
+        console.log("Role check for referral:", {
+            userRole: user.role,
+            isDoctor: isDoctor
+        });
+        if (isDoctor) {
+            // Check doctor's schedule
+            schedule = await prisma.doctorSchedule.findFirst({
+                where: {
+                    doctorId,
+                    dayOfWeek,
+                    isAvailable: true,
+                    startTime: { lte: appointmentStartTime },
+                    endTime: { gt: appointmentStartTime }
+                }
+            });
+            scheduleType = 'Doctor';
+        }
+        else {
+            // Check employee's schedule
+            schedule = await prisma.employeeSchedule.findFirst({
+                where: {
+                    userId: doctorId,
+                    dayOfWeek,
+                    isAvailable: true,
+                    startTime: { lte: appointmentStartTime },
+                    endTime: { gt: appointmentStartTime }
+                }
+            });
+            scheduleType = 'Employee';
+        }
+        console.log(`Checking ${scheduleType} schedule for referral appointment ${doctorId}:`, schedule);
+        if (!schedule) {
+            return res.status(400).json({ error: `${scheduleType} is not available at this time` });
         }
         // Check for existing appointments at the same time (30-minute slots)
         const slotStart = new Date(appointmentTime);
@@ -402,71 +537,15 @@ export const createReferralAppointment = async (req, res) => {
         }
         // Calculate visit number for this patient within their medical report group
         let visitNumber = 1;
-        // If this is a referral, get the medical report group from the referred appointment
+        let reportGroupId = null;
+        // If this is a referral, get the referred appointment and increment visit number
         if (referredFrom) {
             const referredAppointment = await prisma.appointment.findUnique({
                 where: { id: referredFrom },
-                include: {
-                    reports: {
-                        where: { appointmentId: referredFrom },
-                        take: 1,
-                        select: { medicalReportGroupId: true }
-                    }
-                }
+                select: { visitNumber: true }
             });
-            if (referredAppointment && referredAppointment.reports && referredAppointment.reports.length > 0) {
-                const firstReport = referredAppointment.reports[0];
-                if (firstReport && firstReport.medicalReportGroupId) {
-                    const reportGroupId = firstReport.medicalReportGroupId;
-                    // Count appointments in this medical report group
-                    const groupAppointments = await prisma.appointment.findMany({
-                        where: {
-                            patientId,
-                            reports: {
-                                some: {
-                                    medicalReportGroupId: reportGroupId
-                                }
-                            },
-                            status: { in: ["COMPLETED", "REFERRED"] }
-                        },
-                        orderBy: { createdAt: 'asc' }
-                    });
-                    visitNumber = groupAppointments.length + 1;
-                    // Store the report group ID for later use
-                    const medicalReportGroupId = reportGroupId;
-                    // Create the appointment
-                    const appointment = await prisma.appointment.create({
-                        data: {
-                            patientId,
-                            doctorId,
-                            dateTime: slotStart, // Round to nearest 30-minute slot
-                            notes,
-                            status: "PENDING_PAYMENT",
-                            visitNumber,
-                            referredFrom // Link to previous appointment
-                        },
-                        include: {
-                            patient: true,
-                            doctor: { select: { id: true, name: true, email: true } }
-                        }
-                    });
-                    // Create a medical report for the new appointment to maintain the group connection
-                    await prisma.medicalReport.create({
-                        data: {
-                            appointmentId: appointment.id,
-                            doctorId: doctorId,
-                            medicalReportGroupId: medicalReportGroupId,
-                            diagnosis: "Referral appointment - pending completion",
-                            notes: `Referral appointment from ${referredFrom}`
-                        }
-                    });
-                    res.json({
-                        appointment,
-                        medicalReportGroupId,
-                        visitNumber
-                    });
-                    return;
-                }
+            if (referredAppointment) {
+                visitNumber = referredAppointment.visitNumber + 1;
             }
         }
         else {
@@ -480,7 +559,7 @@ export const createReferralAppointment = async (req, res) => {
             });
             visitNumber = patientAppointments.length + 1;
         }
-        // Create the appointment for non-referral cases
+        // Create the appointment
         const appointment = await prisma.appointment.create({
             data: {
                 patientId,
@@ -498,7 +577,7 @@ export const createReferralAppointment = async (req, res) => {
         });
         res.json({
             appointment,
-            medicalReportGroupId: null,
+            medicalReportGroupId: reportGroupId,
             visitNumber
         });
     }

@@ -26,11 +26,11 @@ export declare const getPatientMedicalReportGroups: (patientId: string) => Promi
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
             patientId: string;
             doctorId: string;
             dateTime: Date;
             notes: string | null;
-            status: string;
             visitNumber: number;
             referredTo: string | null;
             referredFrom: string | null;
@@ -62,11 +62,11 @@ export declare const getPatientMedicalReportGroups: (patientId: string) => Promi
     createdAt: Date;
     updatedAt: Date;
     description: string | null;
-    patientId: string;
-    status: string;
     title: string | null;
+    status: string;
     startDate: Date;
     endDate: Date | null;
+    patientId: string;
 })[]>;
 export declare const getMedicalReportGroupById: (reportGroupId: string) => Promise<({
     patient: {
@@ -96,11 +96,11 @@ export declare const getMedicalReportGroupById: (reportGroupId: string) => Promi
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
             patientId: string;
             doctorId: string;
             dateTime: Date;
             notes: string | null;
-            status: string;
             visitNumber: number;
             referredTo: string | null;
             referredFrom: string | null;
@@ -132,11 +132,11 @@ export declare const getMedicalReportGroupById: (reportGroupId: string) => Promi
     createdAt: Date;
     updatedAt: Date;
     description: string | null;
-    patientId: string;
-    status: string;
     title: string | null;
+    status: string;
     startDate: Date;
     endDate: Date | null;
+    patientId: string;
 }) | null>;
 export declare const createMedicalReportGroup: (data: {
     patientId: string;
@@ -159,11 +159,11 @@ export declare const createMedicalReportGroup: (data: {
     createdAt: Date;
     updatedAt: Date;
     description: string | null;
-    patientId: string;
-    status: string;
     title: string | null;
+    status: string;
     startDate: Date;
     endDate: Date | null;
+    patientId: string;
 }>;
 export declare const updateMedicalReportGroup: (reportGroupId: string, data: {
     title?: string;
@@ -198,11 +198,11 @@ export declare const updateMedicalReportGroup: (reportGroupId: string, data: {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
             patientId: string;
             doctorId: string;
             dateTime: Date;
             notes: string | null;
-            status: string;
             visitNumber: number;
             referredTo: string | null;
             referredFrom: string | null;
@@ -234,13 +234,24 @@ export declare const updateMedicalReportGroup: (reportGroupId: string, data: {
     createdAt: Date;
     updatedAt: Date;
     description: string | null;
-    patientId: string;
-    status: string;
     title: string | null;
+    status: string;
     startDate: Date;
     endDate: Date | null;
+    patientId: string;
 }>;
 export declare const getMedicalReportById: (reportId: string) => Promise<({
+    medicalReportGroup: {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        title: string | null;
+        status: string;
+        startDate: Date;
+        endDate: Date | null;
+        patientId: string;
+    } | null;
     doctor: {
         email: string;
         id: string;
@@ -267,26 +278,15 @@ export declare const getMedicalReportById: (reportId: string) => Promise<({
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        status: string;
         patientId: string;
         doctorId: string;
         dateTime: Date;
         notes: string | null;
-        status: string;
         visitNumber: number;
         referredTo: string | null;
         referredFrom: string | null;
     };
-    medicalReportGroup: {
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        description: string | null;
-        patientId: string;
-        status: string;
-        title: string | null;
-        startDate: Date;
-        endDate: Date | null;
-    } | null;
 } & {
     id: string;
     createdAt: Date;
@@ -325,6 +325,17 @@ export declare const updateMedicalReport: (reportId: string, data: {
     referralReason?: string;
     referralNotes?: string;
 }) => Promise<{
+    medicalReportGroup: {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        title: string | null;
+        status: string;
+        startDate: Date;
+        endDate: Date | null;
+        patientId: string;
+    } | null;
     doctor: {
         email: string;
         id: string;
@@ -351,26 +362,15 @@ export declare const updateMedicalReport: (reportId: string, data: {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        status: string;
         patientId: string;
         doctorId: string;
         dateTime: Date;
         notes: string | null;
-        status: string;
         visitNumber: number;
         referredTo: string | null;
         referredFrom: string | null;
     };
-    medicalReportGroup: {
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        description: string | null;
-        patientId: string;
-        status: string;
-        title: string | null;
-        startDate: Date;
-        endDate: Date | null;
-    } | null;
 } & {
     id: string;
     createdAt: Date;
@@ -405,28 +405,23 @@ export declare const getPatientVisitHistory: (patientId: string) => Promise<({
         age: number | null;
         gender: string | null;
     };
-    doctor: {
-        email: string;
-        id: string;
-        name: string;
-    };
     reports: ({
-        doctor: {
-            email: string;
-            id: string;
-            name: string;
-        };
         medicalReportGroup: {
             id: string;
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            patientId: string;
-            status: string;
             title: string | null;
+            status: string;
             startDate: Date;
             endDate: Date | null;
+            patientId: string;
         } | null;
+        doctor: {
+            email: string;
+            id: string;
+            name: string;
+        };
     } & {
         id: string;
         createdAt: Date;
@@ -449,15 +444,20 @@ export declare const getPatientVisitHistory: (patientId: string) => Promise<({
         medicalReportGroupId: string | null;
         reportUrl: string | null;
     })[];
+    doctor: {
+        email: string;
+        id: string;
+        name: string;
+    };
 } & {
     id: string;
     createdAt: Date;
     updatedAt: Date;
+    status: string;
     patientId: string;
     doctorId: string;
     dateTime: Date;
     notes: string | null;
-    status: string;
     visitNumber: number;
     referredTo: string | null;
     referredFrom: string | null;
@@ -495,11 +495,11 @@ export declare const getAllMedicalReportGroups: (filters?: {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
             patientId: string;
             doctorId: string;
             dateTime: Date;
             notes: string | null;
-            status: string;
             visitNumber: number;
             referredTo: string | null;
             referredFrom: string | null;
@@ -531,10 +531,10 @@ export declare const getAllMedicalReportGroups: (filters?: {
     createdAt: Date;
     updatedAt: Date;
     description: string | null;
-    patientId: string;
-    status: string;
     title: string | null;
+    status: string;
     startDate: Date;
     endDate: Date | null;
+    patientId: string;
 })[]>;
 //# sourceMappingURL=medicalReport.service.d.ts.map

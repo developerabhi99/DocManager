@@ -49,8 +49,8 @@ export async function getMyAppointments(req: Request, res: Response) {
         orderBy: { dateTime: 'desc' }
       });
     } else {
-      // Patient sees their appointments only
-      whereClause.patientId = authUser.userId;
+      // Other than main Doctor sees their appointments only
+      whereClause.doctorId = authUser.userId;
       
       appointments = await prisma.appointment.findMany({
         where: whereClause,
@@ -63,7 +63,10 @@ export async function getMyAppointments(req: Request, res: Response) {
       });
     }
 
+    console.log("appointments", appointments);
+
     res.json(appointments);
+
   } catch (error) {
     console.error("getMyAppointments error:", error);
     res.status(500).json({ error: "Failed to fetch appointments" });
