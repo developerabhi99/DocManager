@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { prisma } from '../index';
+import { prisma } from '../config/db.js';
 
 // Get general dashboard statistics (available to all authenticated users)
 export const getDashboardStats = async (req: Request, res: Response) => {

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import express from "express";
-import { login, updateUserImage } from "../controllers/auth.controller";
+import { login, updateUserImage } from "../controllers/auth.controller.js";
 import {
   createUser,
   updateUserProfile,
@@ -12,7 +12,7 @@ import {
   listUsers,
   listUserTypes,
   updateRolePermissions,
-} from "../controllers/admin.controller";
+} from "../controllers/admin.controller.js";
 import {
   createPatient,
   createAppointment,

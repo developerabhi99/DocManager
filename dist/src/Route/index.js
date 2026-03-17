@@ -1,6 +1,6 @@
 import express from "express";
-import { login, updateUserImage } from "../controllers/auth.controller";
-import { createUser, updateUserProfile, createPermission, createRole, createUserType, listPermissions, listRoles, listUsers, listUserTypes, updateRolePermissions, } from "../controllers/admin.controller";
+import { login, updateUserImage } from "../controllers/auth.controller.js";
+import { createUser, updateUserProfile, createPermission, createRole, createUserType, listPermissions, listRoles, listUsers, listUserTypes, updateRolePermissions, } from "../controllers/admin.controller.js";
 import { createPatient, createAppointment, listPatients, listAppointments, processPayment, completeAppointment, referAppointment, createReferralAppointment, listDoctors, } from "../controllers/appointment.controller.js";
 import { getComprehensiveAppointmentDetails } from "../controllers/appointmentDetails.controller.js";
 import { getPatientCompleteHistory } from "../controllers/patientHistory.controller.js";

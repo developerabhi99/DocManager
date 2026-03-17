@@ -1,4 +1,8 @@
 import { prisma } from '../config/db.js';
+import { authenticate } from '../middleware/auth.middleware.js';
+import { hasPermission } from '../middleware/permission.middleware.js';
+import fs from 'fs';
+import path from 'path';
 export const createPatient = async (req, res) => {
     try {
         const { name, email, phone, address, age, gender } = req.body;
@@ -41,17 +45,17 @@ export const createAppointment = async (req, res) => {
     try {
         const authUser = req.user; // User should be set by authenticate middleware
         const { patientId, doctorId, dateTime, notes } = req.body;
-        console.log("Appointment creation - Logged in user:", {
-            userId: authUser.userId,
-            role: authUser.role,
-            permissions: authUser.permissions
-        });
-        console.log("Appointment creation - Parameters:", {
-            patientId,
-            doctorId,
-            dateTime,
-            notes
-        });
+        // console.log("Appointment creation - Logged in user:", {
+        //   userId: authUser.userId,
+        //   role: authUser.role,
+        //   permissions: authUser.permissions
+        // });
+        // console.log("Appointment creation - Parameters:", {
+        //   patientId,
+        //   doctorId,
+        //   dateTime,
+        //   notes
+        // });
         // Validate that the appointment time is in the future
         const appointmentTime = new Date(dateTime);
         // console.log(req);
@@ -62,7 +66,7 @@ export const createAppointment = async (req, res) => {
         const dayOfWeek = appointmentTime.getDay();
         const appointmentStartTime = appointmentTime.toTimeString().slice(0, 5); // HH:MM format
         // First, check if the doctorId is actually a doctor or an employee
-        console.log("Doctor Id", doctorId);
+        //  console.log("Doctor Id",doctorId);
         const user = await prisma.user.findUnique({
             where: { id: doctorId },
             include: { role: true } // Include the role relation
@@ -72,13 +76,13 @@ export const createAppointment = async (req, res) => {
         }
         let schedule;
         let scheduleType;
-        console.log("Full user object:", user);
-        console.log("User role object:", user.role);
-        console.log("User role type:", typeof user.role);
+        // console.log("Full user object:", user);
+        // console.log("User role object:", user.role);
+        // console.log("User role type:", typeof user.role);
         if (typeof user.role === 'string') {
             // If role is a string, use it directly
             const userRoleName = user.role;
-            console.log("Role is string:", userRoleName);
+            //console.log("Role is string:", userRoleName);
             if (userRoleName === 'Doctor') {
                 schedule = await prisma.doctorSchedule.findFirst({
                     where: {
@@ -107,7 +111,7 @@ export const createAppointment = async (req, res) => {
         else if (user.role && typeof user.role === 'object' && 'name' in user.role) {
             // If role is an object with name property
             const userRoleName = user.role.name;
-            console.log("Role is object with name:", userRoleName);
+            // console.log("Role is object with name:", userRoleName);
             if (userRoleName === 'Doctor') {
                 schedule = await prisma.doctorSchedule.findFirst({
                     where: {
@@ -135,7 +139,7 @@ export const createAppointment = async (req, res) => {
         }
         else {
             // Fallback - treat as employee if role structure is unexpected
-            console.log("Role structure unexpected, treating as employee");
+            // console.log("Role structure unexpected, treating as employee");
             schedule = await prisma.employeeSchedule.findFirst({
                 where: {
                     userId: doctorId,
@@ -147,7 +151,7 @@ export const createAppointment = async (req, res) => {
             });
             scheduleType = 'Employee';
         }
-        console.log(`Checking ${scheduleType} schedule for ${doctorId}:`, schedule);
+        //      console.log(`Checking ${scheduleType} schedule for ${doctorId}:`, schedule);
         if (!schedule) {
             return res.status(400).json({ error: `${scheduleType} is not available at this time` });
         }
@@ -328,14 +332,29 @@ export const completeAppointment = async (req, res) => {
         // Handle both file upload and JSON data
         const { notes, diagnosis, symptoms, treatment, prescription, formData, vitalSigns, labResults, imaging, isReferred, referredTo, referralReason, referralNotes, medicalReportGroupId } = req.body;
         let reportUrl = req.body.reportUrl;
+        console.log("Report file:", req.file);
         // Check if file was uploaded
-        if (req.files && req.files.reportFile) {
-            const reportFiles = req.files.reportFile;
-            const reportFile = Array.isArray(reportFiles) ? reportFiles[0] : reportFiles;
-            // For now, just return the filename - in production, you'd upload to cloud storage
+        if (req.file) {
+            const reportFile = req.file;
+            // Create uploads directory if it doesn't exist
+            const uploadsDir = path.join(process.cwd(), 'uploads');
+            if (!fs.existsSync(uploadsDir)) {
+                fs.mkdirSync(uploadsDir, { recursive: true });
+            }
+            // Generate unique filename
             if (reportFile && 'originalname' in reportFile) {
-                reportUrl = `/uploads/${reportFile.originalname}`;
-                console.log('File uploaded:', reportFile);
+                const fileExtension = path.extname(reportFile.originalname);
+                const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
+                const filePath = path.join(uploadsDir, uniqueFilename);
+                // Move file to uploads directory
+                fs.renameSync(reportFile.path, filePath);
+                // Store the file URL
+                reportUrl = `/uploads/${uniqueFilename}`;
+                console.log('📎 Report file uploaded successfully:', {
+                    originalName: reportFile.originalname,
+                    uniqueFilename: uniqueFilename,
+                    reportUrl: reportUrl
+                });
             }
         }
         // Get appointment details
@@ -360,6 +379,13 @@ export const completeAppointment = async (req, res) => {
         const parsedVitalSigns = vitalSigns && typeof vitalSigns === 'string' ? JSON.parse(vitalSigns) : vitalSigns;
         const parsedLabResults = labResults && typeof labResults === 'string' ? JSON.parse(labResults) : labResults;
         const parsedImaging = imaging && typeof imaging === 'string' ? JSON.parse(imaging) : imaging;
+        // Convert string boolean values to actual booleans
+        const isReferredBoolean = isReferred === 'true' || isReferred === true;
+        // console.log('🔄 Boolean conversion:', {
+        //   isReferred: isReferred,
+        //   isReferredBoolean: isReferredBoolean,
+        //   typeofIsReferred: typeof isReferred
+        // });
         // Calculate visit number for this patient
         const patientAppointments = await prisma.appointment.findMany({
             where: {
@@ -371,7 +397,7 @@ export const completeAppointment = async (req, res) => {
         const visitNumber = patientAppointments.length + 1;
         // Create or update medical report group
         let reportGroupId = medicalReportGroupId;
-        if (!reportGroupId && !isReferred) {
+        if (!reportGroupId && !isReferredBoolean) {
             // Create new medical report group for first visit
             const reportGroup = await prisma.medicalReportGroup.create({
                 data: {
@@ -403,10 +429,10 @@ export const completeAppointment = async (req, res) => {
                     vitalSigns: parsedVitalSigns,
                     labResults: parsedLabResults,
                     imaging: parsedImaging,
-                    isReferred: isReferred || false,
-                    referredTo: isReferred ? referredTo : null,
-                    referralReason: isReferred ? referralReason : null,
-                    referralNotes: isReferred ? referralNotes : null
+                    isReferred: isReferredBoolean,
+                    referredTo: isReferredBoolean ? referredTo : null,
+                    referralReason: isReferredBoolean ? referralReason : null,
+                    referralNotes: isReferredBoolean ? referralNotes : null
                 }
             });
         }
@@ -427,10 +453,10 @@ export const completeAppointment = async (req, res) => {
                     vitalSigns: parsedVitalSigns,
                     labResults: parsedLabResults,
                     imaging: parsedImaging,
-                    isReferred: isReferred || false,
-                    referredTo: isReferred ? referredTo : null,
-                    referralReason: isReferred ? referralReason : null,
-                    referralNotes: isReferred ? referralNotes : null
+                    isReferred: isReferredBoolean,
+                    referredTo: isReferredBoolean ? referredTo : null,
+                    referralReason: isReferredBoolean ? referralReason : null,
+                    referralNotes: isReferredBoolean ? referralNotes : null
                 }
             });
         }
@@ -438,9 +464,9 @@ export const completeAppointment = async (req, res) => {
         const updatedAppointment = await prisma.appointment.update({
             where: { id: appointmentId },
             data: {
-                status: isReferred ? "REFERRED" : "COMPLETED",
+                status: isReferredBoolean ? "REFERRED" : "COMPLETED",
                 visitNumber,
-                referredTo: isReferred ? referredTo : null
+                referredTo: isReferredBoolean ? referredTo : null
             },
             include: {
                 patient: true,
@@ -449,7 +475,7 @@ export const completeAppointment = async (req, res) => {
             }
         });
         res.json({
-            message: `Appointment ${isReferred ? 'referred' : 'completed'} successfully`,
+            message: `Appointment ${isReferredBoolean ? 'referred' : 'completed'} successfully`,
             appointment: updatedAppointment,
             medicalReport,
             medicalReportGroupId: reportGroupId
@@ -483,10 +509,10 @@ export const createReferralAppointment = async (req, res) => {
         let scheduleType;
         // Simple role check - treat non-Doctor roles as employees
         const isDoctor = user.role?.name === 'Doctor';
-        console.log("Role check for referral:", {
-            userRole: user.role,
-            isDoctor: isDoctor
-        });
+        // console.log("Role check for referral:", {
+        //   userRole: user.role,
+        //   isDoctor: isDoctor
+        // });
         if (isDoctor) {
             // Check doctor's schedule
             schedule = await prisma.doctorSchedule.findFirst({
@@ -513,7 +539,7 @@ export const createReferralAppointment = async (req, res) => {
             });
             scheduleType = 'Employee';
         }
-        console.log(`Checking ${scheduleType} schedule for referral appointment ${doctorId}:`, schedule);
+        //console.log(`Checking ${scheduleType} schedule for referral appointment ${doctorId}:`, schedule);
         if (!schedule) {
             return res.status(400).json({ error: `${scheduleType} is not available at this time` });
         }
