@@ -260,6 +260,109 @@ export async function getEmployeeAvailability(req: Request, res: Response) {
     const targetDate = new Date(date);
     const dayOfWeek = targetDate.getDay(); // 0 = Sunday, 1 = Monday, ...
 
+    const isDoctor =await prisma.doctorSchedule.findFirst({
+      where: {
+        doctorId: employeeId as string
+      }
+    });
+
+    if(isDoctor){
+      // Get doctor's schedule for this day
+      const schedules = await prisma.doctorSchedule.findMany({
+        where: {
+          doctorId: employeeId as string,
+          dayOfWeek,
+          isAvailable: true
+        },
+        orderBy: { startTime: "asc" }
+      });
+      
+      // Get existing appointments for this date
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const appointments = await prisma.appointment.findMany({
+        where: {
+          doctorId: employeeId as string,
+          dateTime: {
+            gte: startOfDay,
+            lte: endOfDay
+          },
+          status: "SCHEDULED"
+        },
+        orderBy: { dateTime: "asc" }
+      });
+
+      // Generate available time slots (30-minute intervals)
+      const availableSlots = [];
+      
+      console.log('Target date:', targetDate);
+      console.log('Day of week:', dayOfWeek);
+      console.log('Employee ID:', employeeId);
+      
+      for (const schedule of schedules) {
+        const [startHour, startMin] = schedule.startTime.split(":").map(Number);
+        const [endHour, endMin] = schedule.endTime.split(":").map(Number);
+        
+        // Create date in local timezone by using the individual components
+        let currentTime = new Date();
+        currentTime.setFullYear(targetDate.getFullYear());
+        currentTime.setMonth(targetDate.getMonth());
+        currentTime.setDate(targetDate.getDate());
+        currentTime.setHours(startHour || 0, startMin || 0, 0, 0);
+        
+        const endTime = new Date();
+        endTime.setFullYear(targetDate.getFullYear());
+        endTime.setMonth(targetDate.getMonth());
+        endTime.setDate(targetDate.getDate());
+        endTime.setHours(endHour || 0, endMin || 0, 0);
+        
+        console.log('Schedule:', schedule);
+        console.log('Current time:', currentTime);
+        console.log('End time:', endTime);
+
+        while (currentTime < endTime) {
+          const slotEnd = new Date(currentTime);
+          slotEnd.setMinutes(currentTime.getMinutes() + 30);
+
+          // Check if this slot conflicts with existing appointments
+          const hasConflict = appointments.some(apt => {
+            const aptStart = new Date(apt.dateTime);
+            const aptEnd = new Date(aptStart);
+            aptEnd.setMinutes(aptStart.getMinutes() + 30);
+            
+            return (currentTime < aptEnd && slotEnd > aptStart);
+          });
+
+          if (!hasConflict) {
+            const slot = {
+              startTime: currentTime.toISOString(),
+              endTime: slotEnd.toISOString()
+            };
+            console.log('Adding slot:', slot);
+            
+            // Only add slots that are in the future
+            if (currentTime > new Date()) {
+              availableSlots.push(slot);
+            }
+          }
+
+          currentTime.setMinutes(currentTime.getMinutes() + 30);
+        }
+      }
+
+      return res.json({
+        date,
+        dayOfWeek,
+        schedules,
+        appointments,
+        availableSlots
+      });
+    }
+
     // Get employee's schedule for this day
     const schedules = await prisma.employeeSchedule.findMany({
       where: {

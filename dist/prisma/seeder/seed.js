@@ -34,6 +34,7 @@ async function main() {
         prisma.permission.create({ data: { key: 'MANAGE_SCHEDULE', description: 'Manage schedules' } }),
         prisma.permission.create({ data: { key: 'MANAGE_TRANSACTIONS', description: 'Manage financial transactions' } }),
         prisma.permission.create({ data: { key: 'MANAGE_ROLES', description: 'Manage roles and permissions' } }),
+        prisma.permission.create({ data: { key: 'COMPLETE_REFER_APPOINTMENTS', description: 'Manage Refer and Complete and permissions' } }),
     ]);
     console.log("🔐 Created permissions");
     /* ===============================
